@@ -50,6 +50,18 @@ This repository extends OAI RFsimulator with:
 - IQ attenuation, integer-sample propagation delay, and fixed Doppler processing
 - Reproducible validation cases and reference results
 
+
+## Intended Applications
+
+This project can be used for:
+
+- Reproducible HAPS-to-UE link experiments in OAI RFsimulator
+- Evaluation of elevation-dependent slant range, propagation delay, and FSPL
+- LOS/NLOS, clutter, shadow-fading, and building-entry-loss analysis
+- Atmospheric gas and fixed rain-layer attenuation studies
+- IQ-level evaluation of amplitude attenuation, integer-sample delay, and fixed Doppler
+- Baseline development for future dynamic geometry, fractional delay, NTN-TDL, and MIMO extensions
+
 ## Supported Features
 
 - OAI configuration and RFsimulator integration
