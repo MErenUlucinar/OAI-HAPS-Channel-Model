@@ -38,17 +38,6 @@ Delay, IQ gain, and fixed Doppler
 OAI RFsimulator receive path
 ```
 
-## Main Contributions
-
-This repository extends OAI RFsimulator with:
-
-- A modular HAPS-specific channel implementation
-- WGS-84-based HAPS-to-UE geometry
-- 3GPP TR 38.811-based LOS, clutter, and shadow-fading modeling
-- ITU-R-based building-entry, atmospheric-gas, and rain losses
-- Separate uplink and downlink HAPS channel contexts
-- IQ attenuation, integer-sample propagation delay, and fixed Doppler processing
-- Reproducible validation cases and reference results
 
 
 ## Intended Applications
@@ -223,16 +212,6 @@ integer-sample delay verification. The same dataset, including exact sample
 counts, applied delays, and quantization errors, is available in
 [`validation/reference_results.csv`](validation/reference_results.csv).
 
-## What This Project Adds to OAI
-
-This project extends OAI RFsimulator with:
-
-- WGS-84-based HAPS-to-UE geometry
-- Elevation-dependent 3GPP TR 38.811 LOS, clutter, and shadow fading
-- ITU-R-based building entry, atmospheric gas, and rain losses
-- HAPS-specific UL and DL channel contexts
-- IQ attenuation, integer-sample propagation delay, and fixed Doppler
-- Reproducible validation cases and reference results
 
 ## Current Limitations
 
