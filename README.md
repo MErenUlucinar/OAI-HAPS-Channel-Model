@@ -5,7 +5,7 @@ OpenAirInterface (OAI) RFsimulator. The implementation combines a static
 WGS-84-based HAPS-to-UE geometry with large-scale propagation effects based on
 3GPP TR 38.811 and selected ITU-R recommendations.
 
-> **Current version:** v0.1.0 — Experimental
+> **Current development version:** v0.1.1 — Experimental (RNG initialization fix)
 
 > This project is a research prototype. It is not an official 3GPP or ITU
 > conformance implementation.
@@ -17,6 +17,7 @@ WGS-84-based HAPS-to-UE geometry with large-scale propagation effects based on
 - [Source Module Guide](src/README.md)
 - [Example HAPS Configuration](examples/channelmod_haps_3gpp_itu.conf)
 - [Validation Guide](validation/README.md)
+- [RNG fix, validation, and E2/E3 clutter setting](docs/RNG_FIX.md)
 - [Reference Validation Results](validation/reference_results.csv)
 
 

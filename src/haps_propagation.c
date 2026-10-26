@@ -234,6 +234,20 @@ static uint32_t haps_xorshift32(uint32_t *state)
 }
 
 /*
+ * Review fix (E9): SplitMix32-style seed finaliser (Murmur3 fmix32 constants).
+ * Any nonzero 32-bit state is a valid xorshift32 state; mixing makes the
+ * first outputs independent of the magnitude of the user seed.
+ */
+static uint32_t haps_seed_mix(uint32_t seed)
+{
+  uint32_t z = seed + 0x9E3779B9U;
+  z = (z ^ (z >> 16)) * 0x85EBCA6BU;
+  z = (z ^ (z >> 13)) * 0xC2B2AE35U;
+  z ^= z >> 16;
+  return z != 0 ? z : 0x6d2b79f5U;
+}
+
+/*
  * Açık aralıkta uniform rastgele değişken:
  *
  * 0 < u < 1
@@ -586,8 +600,8 @@ int haps_compute_propagation(
 
     LOG_E(
         HW,
-        "HAPS propagation: BEL/gas/rain/cloud/"
-        "scintillation is not implemented yet\n");
+        "HAPS propagation: cloud and scintillation "
+        "are not implemented yet\n");
 
     return -2;
   }
@@ -613,10 +627,15 @@ int haps_compute_propagation(
   /*
    * Seed aynı olduğunda sonuç yeniden üretilebilir.
    */
-  uint32_t random_state =
-      cfg->random_seed != 0
-          ? cfg->random_seed
-          : 1U;
+  /*
+   * Review fix (E9): xorshift32 must not be seeded with the raw user seed.
+   * For seeds below 2^13 the first output is ~ seed * 270369, i.e. the LoS
+   * draw is ~ seed * 6.3e-5 and every link is LoS. Mix the seed with a
+   * SplitMix32-style finaliser and discard the first outputs.
+   */
+  uint32_t random_state = haps_seed_mix(cfg->random_seed != 0 ? cfg->random_seed : 1U);
+  for (int warm = 0; warm < 8; warm++)
+    (void)haps_xorshift32(&random_state);
 
   switch (cfg->los_mode) {
     case HAPS_LOS_FORCED:
