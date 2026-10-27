@@ -6,6 +6,20 @@ OpenAirInterface (OAI) RFsimulator source tree.
 > The integration points below describe the current `v0.1.0` prototype. Exact
 > line numbers and patch contents depend on the selected OAI commit or tag.
 
+## Tested configuration compatibility
+
+The configuration examples target OAI `develop` commit
+`9313cbea82bc3c6b8ff695dd808a0cde5f431724`. See the
+[profile instructions](../examples/README.md). They use `do_SRS = "none"`, a
+list-type `rfsimulator` section and `min_rxtxtime = 6`.
+
+The OAI integration also needs the CFRA common-occasion assignment and the gNB
+SIB1 NTN-access condition for band 78 whenever `ntn_Config_r17` is configured.
+Changing configuration syntax alone does not implement these source fixes.
+The author's pinned E8/E9/SA build contains them. The existing source and
+integration-patch publication is a separate change; this configuration update
+does not replace a complete OAI integration patch.
+
 ## 1. Integration Principle
 
 The repository separates the HAPS implementation from the OAI core:

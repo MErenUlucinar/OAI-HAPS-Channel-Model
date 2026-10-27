@@ -15,6 +15,8 @@ WGS-84-based HAPS-to-UE geometry with large-scale propagation effects based on
 - [User Guide](docs/USER_GUIDE.md)
 - [OAI Integration Guide](integration/README.md)
 - [Source Module Guide](src/README.md)
+- [Runnable configuration profiles (OAI 9313cbe)](examples/README.md)
+- [Configuration review fixes C1--C7](docs/CONFIGURATION_FIXES.md)
 - [Example HAPS Configuration](examples/channelmod_haps_3gpp_itu.conf)
 - [Validation Guide](validation/README.md)
 - [RNG fix, validation, and E2/E3 clutter setting](docs/RNG_FIX.md)
@@ -176,6 +178,10 @@ Sample rate    : 61.44 Msps
 Fixed Doppler  : 0 Hz
 ```
 
+The default example enables integer propagation delay. The nominal SA
+profile keeps clutter and shadow fading off; E9 uses the separate
+`channelmod_haps_3gpp_itu.e9-delay-clutter-on.conf` profile with both enabled.
+Use matched UE/gNB/channel files per elevation; see [examples](examples/README.md).
 Additional propagation effects can be enabled or disabled through the HAPS
 configuration flags.
 

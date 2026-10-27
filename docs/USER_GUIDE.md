@@ -38,6 +38,12 @@ The release supports:
 - Optional fixed Doppler with continuous phase
 - Separate uplink and downlink channel contexts
 
+For the current configuration set, use the [pinned OAI profiles](../examples/README.md)
+and the [C1--C7 configuration fixes](CONFIGURATION_FIXES.md). The profiles target
+OAI `9313cbea82bc3c6b8ff695dd808a0cde5f431724`; an arbitrary moving `develop`
+branch is not assumed compatible. The default is the zenith SA profile with
+propagation delay enabled, PLMN 208/99, SST 1 without SD, and DNN `oai`.
+
 ## 2. Prerequisites
 
 Before integrating the model, prepare:
