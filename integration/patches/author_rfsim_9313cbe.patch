@@ -1,0 +1,4793 @@
+diff --git a/openair1/SIMULATION/TOOLS/random_channel.c b/openair1/SIMULATION/TOOLS/random_channel.c
+index daf9c4c..db8ebba 100644
+--- a/openair1/SIMULATION/TOOLS/random_channel.c
++++ b/openair1/SIMULATION/TOOLS/random_channel.c
+@@ -7,6 +7,7 @@
+ #include <stdlib.h>
+ #include <string.h>
+ #include <complex.h>
++#include <stdint.h>
+ 
+ #include "PHY/TOOLS/tools_defs.h"
+ #include "sim.h"
+@@ -334,6 +335,16 @@ static struct complexd R_sqrt_22_EPA_medium[16] = {{0.8375,0.0}, {0.5249,0.0}, {
+   {0.0806,0.0}, {0.1286,0.0}, {0.5249,0.0}, {0.8375,0.0}
+ };
+ 
++static double two_tap_rayleigh_amps[2] = {
++  0.8,
++  0.2
++};
++
++static double two_tap_rayleigh_delays[2] = {
++  0.0,
++  0.5
++};
++
+ //Rayleigh1_orth_eff_ch_TM4
+ 
+ void tdlModel(int  tdl_paths, double *tdl_delays, double *tdl_amps_dB, double DS_TDL, channel_desc_t *chan_desc ) {
+@@ -1370,6 +1381,188 @@ channel_desc_t *new_channel_desc_scm(uint8_t nb_tx,
+                         0);
+       printf("AWGN: ricean_factor %f\n",chan_desc->ricean_factor);
+       break;
++   
++
++     case BASIC_STATIC:
++     nb_taps = 1;
++     Td = 0;
++     channel_length = 1;
++
++  /*
++   * ricean_factor = 0:
++   * Rastgele Rayleigh bileşeni kullanılmayacak.
++   */
++     ricean_factor = 0.0;
++
++  /*
++   * SISO ilk testinde AoA kullanılmıyor.
++   */
++     aoa = 0.0;
++
++  /*
++   * İlk modelde Doppler yok.
++   */
++     maxDoppler = 0.0;
++
++     fill_channel_desc(chan_desc,
++                    nb_tx,
++                    nb_rx,
++                    nb_taps,
++                    channel_length,
++                    default_amp_lin,
++                    NULL,
++                    NULL,
++                    Td,
++                    sampling_rate,
++                    channel_bandwidth,
++                    ricean_factor,
++                    aoa,
++                    forgetting_factor,
++                    maxDoppler,
++                    channel_offset,
++                    path_loss_dB,
++                    0);
++
++    LOG_I(OCM,
++        "BASIC_STATIC channel created: Tx=%d Rx=%d, gain=%f dB, offset=%lu samples\n",
++        nb_tx,
++        nb_rx,
++        path_loss_dB,
++        channel_offset);
++
++    break;    
++
++
++   case TWO_TAP_RAYLEIGH: {
++  /*
++   * OAI kanal gecikmelerini mikro-saniye,
++   * örnekleme oranını ise Ms/s mantığıyla kullanıyor.
++   *
++   * RFsimulator bu sürümde sampling_rate değerini Hz
++   * olarak gönderdiği için Ms/s birimine dönüştürüyoruz.
++   */
++  const double sampling_rate_msps =
++      sampling_rate > 1.0e6
++          ? sampling_rate / 1.0e6
++          : sampling_rate;
++
++  /*
++   * İki yayılım yolu.
++   */
++  nb_taps = 2;
++
++  /*
++   * En büyük gecikme mikro-saniye cinsinden.
++   */
++  Td = two_tap_rayleigh_delays[1];
++
++  /*
++   * fs = 61.44 Ms/s, Td = 0.5 us için:
++   *
++   * 11 + 2 × 61.44 × 0.5 = 72.44
++   * integer dönüşümünden sonra 72 örnek.
++   */
++  channel_length =
++      (int)(11.0 + 2.0 * sampling_rate_msps * Td);
++
++  AssertFatal(
++      channel_length > 0 && channel_length <= UINT8_MAX,
++      "TWO_TAP_RAYLEIGH invalid channel length %d\n",
++      channel_length);
++
++  /*
++   * Saf Rayleigh kanal.
++   */
++  ricean_factor = 1.0;
++
++  aoa = 0.0;
++  maxDoppler = 0.0;
++
++  fill_channel_desc(
++      chan_desc,
++      nb_tx,
++      nb_rx,
++      nb_taps,
++      channel_length,
++      two_tap_rayleigh_amps,
++      two_tap_rayleigh_delays,
++      NULL,
++      Td,
++
++      /*
++       * Burada Hz cinsindeki sampling_rate değil,
++       * Ms/s cinsindeki değer gönderilmeli.
++       */
++      sampling_rate_msps,
++
++      channel_bandwidth,
++      ricean_factor,
++      aoa,
++      forgetting_factor,
++      maxDoppler,
++      channel_offset,
++      path_loss_dB,
++      0);
++
++  LOG_I(
++    OCM,
++    "TWO_TAP_RAYLEIGH channel created: "
++    "Tx=%d Rx=%d, taps=%d, "
++    "P0=%.2f delay0=%.2f us, "
++    "P1=%.2f delay1=%.2f us, "
++    "delay1_samples=%.2f, "
++    "gain=%.2f dB, "
++    "sampling_rate=%.2f Ms/s, "
++    "channel_length=%d\n",
++    nb_tx,
++    nb_rx,
++    nb_taps,
++    two_tap_rayleigh_amps[0],
++    two_tap_rayleigh_delays[0],
++    two_tap_rayleigh_amps[1],
++    two_tap_rayleigh_delays[1],
++    sampling_rate_msps * two_tap_rayleigh_delays[1],
++    path_loss_dB,
++    sampling_rate_msps,
++    channel_length);
++
++
++  break;
++}
++              
++    case HAPS_3GPP_ITU:
++  nb_taps = 1;
++  Td = 0.0;
++  channel_length = 1;
++  ricean_factor = 0.0;
++  aoa = 0.0;
++  maxDoppler = 0.0;
++
++  fill_channel_desc(chan_desc,
++                    nb_tx,
++                    nb_rx,
++                    nb_taps,
++                    channel_length,
++                    default_amp_lin,
++                    NULL,
++                    NULL,
++                    Td,
++                    sampling_rate,
++                    channel_bandwidth,
++                    ricean_factor,
++                    aoa,
++                    forgetting_factor,
++                    maxDoppler,
++                    0,
++                    0.0,
++                    0);
++
++  LOG_I(OCM,
++        "HAPS_3GPP_ITU descriptor created: Tx=%d Rx=%d\n",
++        nb_tx,
++        nb_rx);
++  break;
++
+ 
+     case TS_SHIFT:
+       nb_taps = 2;
+@@ -1759,7 +1952,7 @@ int random_channel(channel_desc_t *desc, uint8_t abstraction_flag) {
+ 
+   // For AWGN and SAT_LEO_* channels, the received signal (Srx) is equal to transmitted signal (Stx) plus noise (N), i.e., Srx = Stx + N,
+   //  therefore, the channel matrix is the identity matrix.
+-  if (desc->modelid == AWGN || desc->modelid == SAT_LEO_TRANS || desc->modelid == SAT_LEO_REGEN) {
++  if (desc->modelid == AWGN || desc->modelid == BASIC_STATIC  || desc->modelid == HAPS_3GPP_ITU || desc->modelid == SAT_LEO_TRANS || desc->modelid == SAT_LEO_REGEN) {
+     for (aarx=0; aarx<desc->nb_rx; aarx++) {
+       for (aatx = 0; aatx < desc->nb_tx; aatx++) {
+         desc->ch[aarx+(aatx*desc->nb_rx)][0].r = aarx%desc->nb_tx == aatx ? 1.0 : 0.0;
+@@ -1914,6 +2107,23 @@ int random_channel(channel_desc_t *desc, uint8_t abstraction_flag) {
+ 
+     stop_meas(&desc->interp_time);
+   }
++  
++   
++  if (desc->modelid == TWO_TAP_RAYLEIGH
++    && desc->first_run == 1
++    && desc->nb_tx == 1
++    && desc->nb_rx == 1) {
++
++  LOG_I(OCM,
++        "TWO_TAP_RAYLEIGH realization: "
++        "h0=(%.6f%+.6fj), "
++        "h1=(%.6f%+.6fj)\n",
++        desc->a[0][0].r,
++        desc->a[0][0].i,
++        desc->a[1][0].r,
++        desc->a[1][0].i);
++}
++
+ 
+   if (desc->first_run==1)
+     desc->first_run = 0;
+diff --git a/openair1/SIMULATION/TOOLS/sim.h b/openair1/SIMULATION/TOOLS/sim.h
+index 1d4e45a..e6a3e06 100644
+--- a/openair1/SIMULATION/TOOLS/sim.h
++++ b/openair1/SIMULATION/TOOLS/sim.h
+@@ -210,6 +210,9 @@ typedef enum {
+   Rice1_corr,
+   Rice1_anticorr,
+   AWGN,
++  BASIC_STATIC,
++  TWO_TAP_RAYLEIGH,
++  HAPS_3GPP_ITU,
+   Rayleigh1_orthogonal,
+   Rayleigh1_orth_eff_ch_TM4_prec_real,
+   Rayleigh1_orth_eff_ch_TM4_prec_imag,
+@@ -247,6 +250,9 @@ typedef enum {
+   {"Rice1_corr",Rice1_corr},\
+   {"Rice1_anticorr",Rice1_anticorr},\
+   {"AWGN",AWGN},\
++  {"BASIC_STATIC", BASIC_STATIC}, \
++  {"TWO_TAP_RAYLEIGH", TWO_TAP_RAYLEIGH}, \
++  {"HAPS_3GPP_ITU", HAPS_3GPP_ITU}, \
+   {"Rayleigh1_orthogonal",Rayleigh1_orthogonal},\
+   {"Rayleigh1_orth_eff_ch_TM4_prec_real",Rayleigh1_orth_eff_ch_TM4_prec_real},\
+   {"Rayleigh1_orth_eff_ch_TM4_prec_imag",Rayleigh1_orth_eff_ch_TM4_prec_imag},\
+diff --git a/openair2/LAYER2/NR_MAC_UE/nr_ra_procedures.c b/openair2/LAYER2/NR_MAC_UE/nr_ra_procedures.c
+index 9d26e58..94bfee6 100644
+--- a/openair2/LAYER2/NR_MAC_UE/nr_ra_procedures.c
++++ b/openair2/LAYER2/NR_MAC_UE/nr_ra_procedures.c
+@@ -284,6 +284,8 @@ static void configure_ra_preamble(NR_UE_MAC_INST_t *mac)
+   ra->ro_mask_index = -1; // init as not selected
+   NR_RACH_ConfigDedicated_t *rach_ConfigDedicated = ra->rach_ConfigDedicated;
+   if (ra->ra_type == RA_4_STEP) {
++    // TS 38.331: absent CFRA occasions use the common RACH occasion mapping.
++    ra->ssb_ro_config = mac->ssb_ro_preambles;
+     // TODO if the Random Access procedure was initiated for SpCell beam failure recovery
+     // TODO if the Random Access procedure was initiated for SI request
+ 
+diff --git a/openair2/LAYER2/NR_MAC_UE/nr_ue_procedures.c b/openair2/LAYER2/NR_MAC_UE/nr_ue_procedures.c
+index 9112df8..af3f979 100644
+--- a/openair2/LAYER2/NR_MAC_UE/nr_ue_procedures.c
++++ b/openair2/LAYER2/NR_MAC_UE/nr_ue_procedures.c
+@@ -1675,6 +1675,12 @@ void nr_ue_process_l1_measurements(NR_UE_MAC_INST_t *mac, frame_t frame, int slo
+     int ssb_index = l1_measurements->ssb_index;
+     mac->ssb_measurements[ssb_index].ssb_rsrp_dBm = l1_measurements->rsrp_dBm;
+     mac->ssb_measurements[ssb_index].ssb_sinr_dB = l1_measurements->sinr_dB;
++    /* E8_SSB_MEAS_LOG_V1: log the existing serving-cell L1 measurement. */
++    LOG_I(NR_MAC,
++          "E8_SSB_MEAS ssb=%d sinr_dB=%.3f rsrp_dBm=%d\n",
++          ssb_index,
++          (double)l1_measurements->sinr_dB,
++          (int)l1_measurements->rsrp_dBm);
+   } else if (csi_meas) {
+     mac->csirs_measurements.rsrp_dBm = l1_measurements->rsrp_dBm;
+     mac->csirs_measurements.i_1_1 = l1_measurements->i_1_1;
+diff --git a/openair2/LAYER2/NR_MAC_gNB/nr_radio_config.c b/openair2/LAYER2/NR_MAC_gNB/nr_radio_config.c
+index f39708e..bd0f508 100644
+--- a/openair2/LAYER2/NR_MAC_gNB/nr_radio_config.c
++++ b/openair2/LAYER2/NR_MAC_gNB/nr_radio_config.c
+@@ -3090,10 +3090,16 @@ NR_BCCH_DL_SCH_Message_t *get_SIB1_NR(const NR_ServingCellConfigCommon_t *scc,
+       *sib1_1700->intraFreqReselectionRedCap_r17 = redcap_config->intraFreqReselectionRedCap_r17;
+     }
+ 
+-    if (is_ntn_band(band)) {
+-      // If cell provides NTN access, set cellBarredNTN to notBarred.
+-      asn1cCallocOne(sib1_1700->cellBarredNTN_r17, NR_SIB1_v1700_IEs__cellBarredNTN_r17_notBarred);
+-    }
++    if (is_ntn_band(band) ||
++    (scc->ext2 && scc->ext2->ntn_Config_r17)) {
++  /*
++   * Standart NTN bandı veya deneysel HAPS NTN config'i.
++   * Band 78 HAPS hücresinin NTN erişimi yayınlamasını sağlar.
++   */
++  asn1cCallocOne(
++      sib1_1700->cellBarredNTN_r17,
++      NR_SIB1_v1700_IEs__cellBarredNTN_r17_notBarred);
++}
+   }
+ 
+   if (LOG_DEBUGFLAG(DEBUG_ASN1)) {
+diff --git a/radio/rfsimulator/CMakeLists.txt b/radio/rfsimulator/CMakeLists.txt
+index 5a65045..497ad63 100644
+--- a/radio/rfsimulator/CMakeLists.txt
++++ b/radio/rfsimulator/CMakeLists.txt
+@@ -1,23 +1,34 @@
+ # SPDX-License-Identifier: LicenseRef-CSSL-1.0
+ 
+ add_compile_options(-Wunused-parameter)
++set(HAPS_CHANNEL_SOURCES
++    haps/haps_channel.c
++    haps/haps_config.c
++    haps/haps_gas.c
++    haps/haps_rain.c
++    haps/haps_geometry.c
++    haps/haps_propagation.c
++)
++
+ add_library(rfsimulator MODULE
+             simulator.cpp
+             apply_channelmod.c
++            ${HAPS_CHANNEL_SOURCES}
+             ../../openair1/PHY/TOOLS/signal_energy.c
+ )
+-target_link_libraries(rfsimulator PRIVATE SIMU log_headers)
++target_link_libraries(rfsimulator PRIVATE SIMU log_headers m)
+ set_target_properties(rfsimulator PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+ 
+ add_executable(replay_node stored_node.c)
+-target_link_libraries (replay_node minimal_lib)
++target_link_libraries(replay_node minimal_lib)
+ 
+ if (ENABLE_TESTS)
+   add_library(rfsimulator_static
+               simulator.cpp
+               apply_channelmod.c
++              ${HAPS_CHANNEL_SOURCES}
+               ../../openair1/PHY/TOOLS/signal_energy.c
+   )
+-  target_link_libraries(rfsimulator_static PUBLIC SIMU log_headers)
++  target_link_libraries(rfsimulator_static PUBLIC SIMU log_headers m)
+   add_subdirectory(tests)
+ endif()
+diff --git a/radio/rfsimulator/haps/haps_atmosphere.c b/radio/rfsimulator/haps/haps_atmosphere.c
+new file mode 100644
+index 0000000..e69de29
+diff --git a/radio/rfsimulator/haps/haps_atmosphere.h b/radio/rfsimulator/haps/haps_atmosphere.h
+new file mode 100644
+index 0000000..e69de29
+diff --git a/radio/rfsimulator/haps/haps_channel.c b/radio/rfsimulator/haps/haps_channel.c
+new file mode 100644
+index 0000000..960c500
+--- /dev/null
++++ b/radio/rfsimulator/haps/haps_channel.c
+@@ -0,0 +1,862 @@
++#include "haps_channel.h"
++#include "haps_rain.h"
++#include <math.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++
++#include "assertions.h"
++#include "common/utils/LOG/log.h"
++
++#include "haps_geometry.h"
++#include "haps_propagation.h"
++
++#define HAPS_TWO_PI 6.28318530717958647692
++
++static double haps_wrap_phase_rad(double phase_rad)
++{
++  phase_rad = fmod(phase_rad, HAPS_TWO_PI);
++
++  if (phase_rad < 0.0)
++    phase_rad += HAPS_TWO_PI;
++
++  return phase_rad;
++}
++
++struct haps_channel_ctx_s {
++  haps_config_t cfg;
++
++  int nb_tx;
++  int nb_rx;
++  bool is_uplink;
++
++  haps_geometry_result_t geometry;
++  haps_propagation_result_t propagation;
++
++  haps_delay_info_t delay;
++
++  double doppler_hz;
++  double doppler_phase_rad;
++  double doppler_phase_increment_rad;
++
++  uint64_t last_update_timestamp;
++  uint64_t last_log_timestamp;
++};
++
++static int haps_update_rain_loss(
++    haps_channel_ctx_t *ctx)
++{
++  if (ctx == NULL)
++    return -1;
++
++  /*
++   * Always reset rain outputs before calculating.
++   */
++  ctx->propagation.rain_k = 0.0;
++  ctx->propagation.rain_alpha = 0.0;
++
++  ctx->propagation
++      .rain_specific_attenuation_db_per_km =
++      0.0;
++
++  ctx->propagation.rain_path_km = 0.0;
++  ctx->propagation.rain_loss_db = 0.0;
++
++  if (!ctx->cfg.enable_rain ||
++      ctx->cfg.rain_mode ==
++          HAPS_RAIN_DISABLED) {
++    return 0;
++  }
++
++  if (ctx->cfg.rain_mode !=
++      HAPS_RAIN_FIXED_UNIFORM_LAYER) {
++
++    LOG_E(
++        HW,
++        "HAPS RAIN: unsupported mode %d\n",
++        ctx->cfg.rain_mode);
++
++    return -2;
++  }
++
++  haps_rain_input_t rain_input = {
++      .frequency_ghz =
++          ctx->cfg.carrier_frequency_hz /
++          1.0e9,
++
++      .elevation_deg =
++          ctx->geometry.elevation_deg,
++
++      .polarization_tilt_deg =
++          ctx->cfg
++              .rain_polarization_tilt_deg,
++
++      .rain_rate_mm_per_h =
++          ctx->cfg.rain_rate_mm_per_h,
++
++      .rain_height_km =
++          ctx->cfg.rain_height_km,
++
++      .station_height_km =
++          ctx->cfg.ue_altitude_m /
++          1000.0
++  };
++
++  haps_rain_result_t rain_result = {0};
++
++  const int rain_rc =
++      haps_rain_compute(
++          &rain_input,
++          &rain_result);
++
++  if (rain_rc != 0 ||
++      !rain_result.valid) {
++
++    LOG_E(
++        HW,
++        "HAPS RAIN calculation failed: "
++        "link=%s rc=%d\n",
++        ctx->cfg.model_name,
++        rain_rc);
++
++    return -3;
++  }
++
++  ctx->propagation.rain_k =
++      rain_result.k;
++
++  ctx->propagation.rain_alpha =
++      rain_result.alpha;
++
++  ctx->propagation
++      .rain_specific_attenuation_db_per_km =
++      rain_result
++          .specific_attenuation_db_per_km;
++
++  ctx->propagation.rain_path_km =
++      rain_result.geometric_rain_path_km;
++
++  ctx->propagation.rain_loss_db =
++      rain_result.attenuation_db;
++
++  LOG_I(
++      HW,
++      "HAPS RAIN CONFIG: "
++      "link=%s "
++      "mode=P838_FIXED_LAYER "
++      "f=%.6f GHz "
++      "elevation=%.2f deg "
++      "R=%.3f mm/h "
++      "rain_height=%.3f km "
++      "k=%.12f "
++      "alpha=%.12f "
++      "gamma_R=%.9f dB/km "
++      "rain_path=%.6f km "
++      "RAIN=%.6f dB\n",
++      ctx->cfg.model_name,
++      rain_input.frequency_ghz,
++      rain_input.elevation_deg,
++      rain_input.rain_rate_mm_per_h,
++      rain_input.rain_height_km,
++      rain_result.k,
++      rain_result.alpha,
++      rain_result
++          .specific_attenuation_db_per_km,
++      rain_result.geometric_rain_path_km,
++      rain_result.attenuation_db);
++
++  return 0;
++}
++
++static int validate_first_version(
++    const haps_config_t *cfg,
++    int nb_tx,
++    int nb_rx)
++{
++  if (nb_tx != 1 || nb_rx != 1) {
++    LOG_E(
++        HW,
++        "First HAPS implementation currently supports "
++        "only SISO. Tx=%d Rx=%d\n",
++        nb_tx,
++        nb_rx);
++
++    return -1;
++  }
++
++  if (cfg->enable_fast_fading ||
++      cfg->enable_fractional_delay ||
++      cfg->enable_noise) {
++
++    LOG_E(
++        HW,
++        "Fast fading, fractional delay, and internal noise "
++        "are not implemented in this HAPS version\n");
++
++    return -1;
++  }
++
++  return 0;
++}
++
++#define HAPS_SPEED_OF_LIGHT_M_S 299792458.0
++
++static int haps_configure_integer_delay(
++    haps_channel_ctx_t *ctx)
++{
++  if (ctx == NULL)
++    return -1;
++
++  memset(
++      &ctx->delay,
++      0,
++      sizeof(ctx->delay));
++
++  ctx->delay.enabled =
++      ctx->cfg.enable_propagation_delay;
++
++  /*
++   * Delay kapalıysa channel_offset sıfır kalır.
++   */
++  if (!ctx->delay.enabled)
++    return 0;
++
++  const double sample_rate_hz =
++      ctx->cfg.sample_rate_hz;
++
++  if (!isfinite(sample_rate_hz) ||
++      sample_rate_hz <= 0.0) {
++
++    LOG_E(
++        HW,
++        "HAPS DELAY: invalid sample rate %.6f Hz\n",
++        sample_rate_hz);
++
++    return -2;
++  }
++
++  /*
++   * Geometri katmanında propagation_delay_s zaten
++   * hesaplanıyorsa onu doğrudan kullanıyoruz.
++   */
++  double delay_s =
++      ctx->geometry.propagation_delay_s;
++
++  /*
++   * Güvenlik amacıyla geometri alanı geçersizse
++   * slant mesafesinden yeniden hesapla.
++   */
++  if (!isfinite(delay_s) ||
++      delay_s <= 0.0) {
++
++    const double slant_range_m =
++        ctx->geometry.slant_range_m;
++
++    if (!isfinite(slant_range_m) ||
++        slant_range_m <= 0.0) {
++
++      LOG_E(
++          HW,
++          "HAPS DELAY: invalid slant distance %.6f m\n",
++          slant_range_m);
++
++      return -3;
++    }
++
++    delay_s =
++        slant_range_m /
++        HAPS_SPEED_OF_LIGHT_M_S;
++  }
++
++  const double exact_samples =
++      delay_s * sample_rate_hz;
++
++  if (!isfinite(exact_samples) ||
++      exact_samples < 0.0) {
++
++    LOG_E(
++        HW,
++        "HAPS DELAY: invalid exact sample delay %.9f\n",
++        exact_samples);
++
++    return -4;
++  }
++
++  const double floor_samples_double =
++      floor(exact_samples);
++
++  ctx->delay.one_way_delay_s =
++      delay_s;
++
++  ctx->delay.exact_samples =
++      exact_samples;
++
++  ctx->delay.floor_samples =
++      (uint64_t)floor_samples_double;
++
++  ctx->delay.fractional_samples =
++      exact_samples -
++      floor_samples_double;
++
++  /*
++   * Integer-only sürüm:
++   *
++   * OAI'nin mevcut rfsimulator.prop_delay davranışıyla
++   * aynı şekilde ceil kullanıyoruz.
++   */
++  ctx->delay.applied_integer_samples =
++      (uint64_t)ceil(exact_samples);
++
++  ctx->delay.applied_delay_s =
++      (double)ctx->delay.applied_integer_samples /
++      sample_rate_hz;
++
++  ctx->delay.quantization_error_s =
++      ctx->delay.applied_delay_s -
++      ctx->delay.one_way_delay_s;
++
++  LOG_I(
++      HW,
++      "HAPS DELAY CONFIG: "
++      "link=%s enabled=1 "
++      "slant=%.3f km "
++      "one_way_delay=%.6f us "
++      "exact_samples=%.6f "
++      "floor_samples=%llu "
++      "fractional=%.6f "
++      "applied_integer=%llu "
++      "applied_delay=%.6f us "
++      "quant_error=%+.3f ns\n",
++      ctx->cfg.model_name,
++      ctx->geometry.slant_range_m / 1000.0,
++      ctx->delay.one_way_delay_s * 1.0e6,
++      ctx->delay.exact_samples,
++      (unsigned long long)
++          ctx->delay.floor_samples,
++      ctx->delay.fractional_samples,
++      (unsigned long long)
++          ctx->delay.applied_integer_samples,
++      ctx->delay.applied_delay_s * 1.0e6,
++      ctx->delay.quantization_error_s * 1.0e9);
++
++  return 0;
++}
++
++haps_channel_ctx_t *haps_channel_create(
++    const haps_config_t *input_cfg,
++    int nb_tx,
++    int nb_rx,
++    bool is_uplink,
++    double runtime_sample_rate_hz,
++    double runtime_center_frequency_hz)
++{
++  if (input_cfg == NULL)
++    return NULL;
++
++  if (validate_first_version(input_cfg, nb_tx, nb_rx) != 0)
++    return NULL;
++
++  haps_channel_ctx_t *ctx =
++      calloc(1, sizeof(*ctx));
++
++  if (ctx == NULL)
++    return NULL;
++
++  ctx->cfg = *input_cfg;
++  ctx->nb_tx = nb_tx;
++  ctx->nb_rx = nb_rx;
++  ctx->is_uplink = is_uplink;
++
++  /*
++   * RFsimulator'ın gerçek çalışma değerlerini tercih ediyoruz.
++   */
++  if (runtime_sample_rate_hz > 0.0)
++    ctx->cfg.sample_rate_hz = runtime_sample_rate_hz;
++
++  if (runtime_center_frequency_hz > 0.0)
++    ctx->cfg.carrier_frequency_hz =
++        runtime_center_frequency_hz;
++
++   /*
++ * Sabit Doppler NCO başlangıcı.
++ */
++ctx->doppler_hz =
++    ctx->cfg.enable_doppler
++        ? ctx->cfg.fixed_doppler_hz
++        : 0.0;
++
++ctx->doppler_phase_rad = 0.0;
++
++if (ctx->cfg.enable_doppler) {
++  if (ctx->cfg.sample_rate_hz <= 0.0) {
++    LOG_E(
++        HW,
++        "HAPS Doppler requires a positive "
++        "sample rate, received %.3f\n",
++        ctx->cfg.sample_rate_hz);
++
++    free(ctx);
++    return NULL;
++  }
++
++  ctx->doppler_phase_increment_rad =
++      HAPS_TWO_PI *
++      ctx->doppler_hz /
++      ctx->cfg.sample_rate_hz;
++} else {
++  ctx->doppler_phase_increment_rad = 0.0;
++}
++
++
++
++  if (haps_compute_geometry(
++          &ctx->cfg,
++          &ctx->geometry) != 0) {
++
++    LOG_E(HW, "HAPS geometry calculation failed\n");
++    free(ctx);
++    return NULL;
++  }
++
++LOG_I(
++    HW,
++    "HAPS DOPPLER CONFIG: "
++    "link=%s enabled=%d "
++    "HAPS=(lat=%.6f lon=%.6f alt=%.1f m) "
++    "UE=(lat=%.6f lon=%.6f alt=%.1f m) "
++    "slant=%.3f km "
++    "elevation=%.2f deg "
++    "fD=%.2f Hz fs=%.6f Msps "
++    "phase_step=%+.9e rad/sample "
++    "phase_change_1ms=%+.6f rad\n",
++    ctx->cfg.model_name,
++    (int)ctx->cfg.enable_doppler,
++    ctx->cfg.haps_latitude_deg,
++    ctx->cfg.haps_longitude_deg,
++    ctx->cfg.haps_altitude_m,
++    ctx->cfg.ue_latitude_deg,
++    ctx->cfg.ue_longitude_deg,
++    ctx->cfg.ue_altitude_m,
++    ctx->geometry.slant_range_m / 1000.0,
++    ctx->geometry.elevation_deg,
++    ctx->doppler_hz,
++    ctx->cfg.sample_rate_hz / 1.0e6,
++    ctx->doppler_phase_increment_rad,
++    HAPS_TWO_PI * ctx->doppler_hz * 0.001);
++
++const int delay_result =
++    haps_configure_integer_delay(ctx);
++
++if (delay_result != 0) {
++  LOG_E(
++      HW,
++      "HAPS delay initialization failed: %d\n",
++      delay_result);
++
++  /*
++   * Burada mevcut create() fonksiyonundaki diğer
++   * hata dalları hangi cleanup yöntemini kullanıyorsa
++   * aynısını kullanın.
++   */
++  free(ctx);
++  return NULL;
++}
++
++  if (haps_compute_propagation(
++          &ctx->cfg,
++          &ctx->geometry,
++          &ctx->propagation) != 0) {
++
++    LOG_E(HW, "HAPS propagation calculation failed\n");
++    free(ctx);
++    return NULL;
++  }
++  
++    const int rain_rc =
++      haps_update_rain_loss(ctx);
++
++  if (rain_rc != 0) {
++
++    LOG_E(
++        HW,
++        "HAPS rain initialization failed: "
++        "link=%s rc=%d\n",
++        ctx->cfg.model_name,
++        rain_rc);
++
++    free(ctx);
++    return NULL;
++  }
++
++  ctx->propagation.total_loss_db +=
++      ctx->propagation.rain_loss_db;
++
++  /* Apply calibration after ALL physical losses have been combined. */
++  ctx->propagation.applied_loss_db = fmax(
++      0.0,
++      ctx->propagation.total_loss_db - ctx->cfg.link_budget_offset_db);
++  ctx->propagation.linear_amplitude_gain = pow(
++      10.0, -ctx->propagation.applied_loss_db / 20.0);
++  const double rain_amplitude_gain = pow(
++      10.0, -ctx->propagation.rain_loss_db / 20.0);
++
++    LOG_I(
++      HW,
++      "HAPS RAIN INSTALLED: "
++      "link=%s direction=%s "
++      "RAIN=%.6f dB "
++      "rain_gain=%e "
++      "total_loss=%.6f dB "
++      "applied_loss=%.6f dB "
++      "total_gain=%e\n",
++      ctx->cfg.model_name,
++      ctx->is_uplink ? "UL" : "DL",
++      ctx->propagation.rain_loss_db,
++      rain_amplitude_gain,
++      ctx->propagation.total_loss_db,
++      ctx->propagation.applied_loss_db,
++      ctx->propagation.linear_amplitude_gain);
++
++
++LOG_I(
++    HW,
++    "HAPS CHANNEL CREATED: "
++    "link=%s direction=%s "
++    "distance=%.2f m elevation=%.2f deg "
++    "ref_elevation=%.0f deg "
++    "LOS=%d pLOS=%.3f draw=%.3f "
++    "FSPL=%.2f dB CL=%.2f dB "
++    "sigmaSF=%.2f dB SF=%.2f dB "
++    "total=%.2f dB calibration=%.2f dB "
++    "applied=%.2f dB gain=%e "
++    "delay=%.3f us\n",
++    ctx->cfg.model_name,
++    ctx->is_uplink ? "UL" : "DL",
++    ctx->geometry.slant_range_m,
++    ctx->geometry.elevation_deg,
++    ctx->propagation.reference_elevation_deg,
++    ctx->propagation.is_los,
++    ctx->propagation.los_probability,
++    ctx->propagation.los_uniform_draw,
++    ctx->propagation.fspl_db,
++    ctx->propagation.clutter_loss_db,
++    ctx->propagation.shadow_sigma_db,
++    ctx->propagation.shadow_fading_db,
++    ctx->propagation.total_loss_db,
++    ctx->cfg.link_budget_offset_db,
++    ctx->propagation.applied_loss_db,
++    ctx->propagation.linear_amplitude_gain,
++    ctx->geometry.propagation_delay_s * 1.0e6);
++
++  return ctx;
++}
++
++int haps_channel_update(
++    haps_channel_ctx_t *ctx,
++    uint64_t timestamp,
++    int nb_samples)
++{
++  if (ctx == NULL || nb_samples <= 0)
++    return -1;
++
++  /*
++   * İlk sürüm statik geometri kullanmaktadır.
++   */
++  ctx->last_update_timestamp =
++      timestamp + (uint64_t)nb_samples;
++
++  return 0;
++}
++
++int haps_channel_process(
++    haps_channel_ctx_t *ctx,
++    c16_t **input,
++    int nb_tx,
++    cf_t **output,
++    int nb_rx,
++    int nb_samples,
++    uint64_t timestamp)
++{
++  if (ctx == NULL ||
++      input == NULL ||
++      output == NULL ||
++      input[0] == NULL ||
++      output[0] == NULL ||
++      nb_samples <= 0) {
++    return -1;
++  }
++
++  if (nb_tx != 1 || nb_rx != 1)
++    return -1;
++
++  const double gain =
++    ctx->propagation.linear_amplitude_gain;
++
++const bool apply_doppler =
++    ctx->cfg.enable_doppler &&
++    fabs(ctx->doppler_hz) > 1.0e-12;
++
++if (!apply_doppler) {
++  /*
++   * Doppler kapalı veya 0 Hz:
++   * Mevcut identity/propagation yolu.
++   */
++  for (int n = 0; n < nb_samples; ++n) {
++    const double input_real =
++        (double)input[0][n].r;
++
++    const double input_imag =
++        (double)input[0][n].i;
++
++    output[0][n].r +=
++        (float)(input_real * gain);
++
++    output[0][n].i +=
++        (float)(input_imag * gain);
++  }
++
++} else {
++  /*
++   * Sayısal kontrollü osilatör:
++   *
++   * y[n] = gain * x[n] * exp(j * phase[n])
++   *
++   * Her örnekte sin/cos hesaplamak yerine kompleks
++   * osilatör rekürsif olarak güncellenir.
++   */
++  double oscillator_real =
++      cos(ctx->doppler_phase_rad);
++
++  double oscillator_imag =
++      sin(ctx->doppler_phase_rad);
++
++  const double step_real =
++      cos(ctx->doppler_phase_increment_rad);
++
++  const double step_imag =
++      sin(ctx->doppler_phase_increment_rad);
++
++  for (int n = 0; n < nb_samples; ++n) {
++    const double input_real =
++        (double)input[0][n].r;
++
++    const double input_imag =
++        (double)input[0][n].i;
++
++    /*
++     * Kompleks faz dönüşümü:
++     *
++     * (I + jQ)(cos(phi) + j sin(phi))
++     */
++    const double rotated_real =
++        input_real * oscillator_real -
++        input_imag * oscillator_imag;
++
++    const double rotated_imag =
++        input_real * oscillator_imag +
++        input_imag * oscillator_real;
++
++    output[0][n].r +=
++        (float)(rotated_real * gain);
++
++    output[0][n].i +=
++        (float)(rotated_imag * gain);
++
++    /*
++     * Osilatörü bir sonraki örneğe ilerlet.
++     */
++    const double next_real =
++        oscillator_real * step_real -
++        oscillator_imag * step_imag;
++
++    const double next_imag =
++        oscillator_imag * step_real +
++        oscillator_real * step_imag;
++
++    oscillator_real = next_real;
++    oscillator_imag = next_imag;
++
++    /*
++     * Yuvarlama hatasının genliği zamanla bozmasını
++     * önlemek için periyodik normalizasyon.
++     */
++    if ((n & 1023) == 1023) {
++      const double magnitude =
++          hypot(oscillator_real,
++                oscillator_imag);
++
++      if (magnitude > 0.0) {
++        oscillator_real /= magnitude;
++        oscillator_imag /= magnitude;
++      }
++    }
++  }
++
++  /*
++   * Bir sonraki RFsimulator bloğu, son fazın kaldığı
++   * yerden devam eder. Böylece blok sınırlarında
++   * faz sıçraması oluşmaz.
++   */
++  ctx->doppler_phase_rad =
++      haps_wrap_phase_rad(
++          atan2(oscillator_imag,
++                oscillator_real));
++}
++
++  haps_channel_update(
++      ctx,
++      timestamp,
++      nb_samples);
++
++  /*
++   * Yaklaşık saniyede bir durum logu.
++   */
++  const uint64_t log_period_samples =
++      (uint64_t)ctx->cfg.sample_rate_hz;
++
++  if (log_period_samples > 0 &&
++      timestamp - ctx->last_log_timestamp >=
++          log_period_samples) {
++
++    LOG_I(
++    HW,
++    "HAPS ACTIVE: "
++    "link=%s "
++    "direction=%s "
++    "HAPS_lon=%.6f deg "
++    "UE_lon=%.6f deg "
++    "slant=%.3f km "
++    "elevation=%.2f deg "
++    "LOS=%d "
++    "pLOS=%.3f "
++    "draw=%.3f "
++    "FSPL=%.2f dB "
++    "CL=%.2f dB "
++    "sigmaSF=%.2f dB "
++    "SF=%.2f dB "
++    "BEL=%.2f dB "
++    "GAS=%.6f dB "
++    "RAIN=%.6f dB "
++    "total_loss=%.6f dB "
++    "applied_loss=%.6f dB "
++    "Doppler=%+.2f Hz "
++    "phase=%.6f rad\n",
++    ctx->cfg.model_name,
++    ctx->is_uplink ? "UL" : "DL",
++    ctx->cfg.haps_longitude_deg,
++    ctx->cfg.ue_longitude_deg,
++    ctx->geometry.slant_range_m / 1000.0,
++    ctx->geometry.elevation_deg,
++    (int)ctx->propagation.is_los,
++    ctx->propagation.los_probability,
++    ctx->propagation.los_uniform_draw,
++    ctx->propagation.fspl_db,
++    ctx->propagation.clutter_loss_db,
++    ctx->propagation.shadow_sigma_db,
++    ctx->propagation.shadow_fading_db,
++    ctx->propagation.building_entry_loss_db,
++    ctx->propagation.gas_loss_db,
++    ctx->propagation.rain_loss_db,
++    ctx->propagation.total_loss_db,
++    ctx->propagation.applied_loss_db,
++    ctx->doppler_hz,
++    ctx->doppler_phase_rad);
++
++     if (ctx->delay.enabled) {
++  LOG_I(
++      HW,
++      "HAPS DELAY ACTIVE: "
++      "link=%s direction=%s "
++      "slant=%.3f km "
++      "one_way_delay=%.6f us "
++      "exact_samples=%.6f "
++      "integer_samples=%llu "
++      "fractional_residual=%.6f "
++      "applied_delay=%.6f us "
++      "quant_error=%+.3f ns\n",
++      ctx->cfg.model_name,
++      ctx->is_uplink ? "UL" : "DL",
++      ctx->geometry.slant_range_m / 1000.0,
++      ctx->delay.one_way_delay_s * 1.0e6,
++      ctx->delay.exact_samples,
++      (unsigned long long)
++          ctx->delay.applied_integer_samples,
++      ctx->delay.fractional_samples,
++      ctx->delay.applied_delay_s * 1.0e6,
++      ctx->delay.quantization_error_s * 1.0e9);
++}
++      
++    if (ctx->cfg.enable_rain) {
++
++      LOG_I(
++          HW,
++          "HAPS RAIN ACTIVE: "
++          "link=%s direction=%s "
++          "R=%.3f mm/h "
++          "elevation=%.2f deg "
++          "rain_height=%.3f km "
++          "k=%.12f "
++          "alpha=%.12f "
++          "gamma_R=%.9f dB/km "
++          "rain_path=%.6f km "
++          "RAIN=%.6f dB\n",
++          ctx->cfg.model_name,
++          ctx->is_uplink ? "UL" : "DL",
++          ctx->cfg.rain_rate_mm_per_h,
++          ctx->geometry.elevation_deg,
++          ctx->cfg.rain_height_km,
++          ctx->propagation.rain_k,
++          ctx->propagation.rain_alpha,
++          ctx->propagation
++              .rain_specific_attenuation_db_per_km,
++          ctx->propagation.rain_path_km,
++          ctx->propagation.rain_loss_db);
++    } 
++ 
++
++    ctx->last_log_timestamp = timestamp;
++  }
++
++  return 0;
++}
++
++int haps_channel_get_delay_info(
++    const haps_channel_ctx_t *ctx,
++    haps_delay_info_t *info)
++{
++  if (ctx == NULL ||
++      info == NULL) {
++    return -1;
++  }
++
++  *info = ctx->delay;
++
++  return 0;
++}
++
++
++int haps_channel_get_snapshot(
++    const haps_channel_ctx_t *ctx,
++    haps_geometry_result_t *geometry,
++    haps_propagation_result_t *propagation)
++{
++  if (ctx == NULL || geometry == NULL || propagation == NULL)
++    return -1;
++  *geometry = ctx->geometry;
++  *propagation = ctx->propagation;
++  return 0;
++}
++
++void haps_channel_destroy(
++    haps_channel_ctx_t *ctx)
++{
++  if (ctx == NULL)
++    return;
++
++  LOG_I(
++      HW,
++      "Destroying HAPS channel %s\n",
++      ctx->cfg.model_name);
++
++  free(ctx);
++}
+diff --git a/radio/rfsimulator/haps/haps_channel.h b/radio/rfsimulator/haps/haps_channel.h
+new file mode 100644
+index 0000000..03c1588
+--- /dev/null
++++ b/radio/rfsimulator/haps/haps_channel.h
+@@ -0,0 +1,73 @@
++#ifndef HAPS_CHANNEL_H
++#define HAPS_CHANNEL_H
++
++#include <stdbool.h>
++#include <stdint.h>
++
++#include "openair1/SIMULATION/TOOLS/sim.h"
++#include "haps_config.h"
++#include "haps_geometry.h"
++#include "haps_propagation.h"
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++typedef struct haps_channel_ctx_s haps_channel_ctx_t;
++
++typedef struct {
++  bool enabled;
++
++  double one_way_delay_s;
++  double exact_samples;
++
++  uint64_t floor_samples;
++  double fractional_samples;
++
++  uint64_t applied_integer_samples;
++  double applied_delay_s;
++  double quantization_error_s;
++} haps_delay_info_t;
++
++
++
++haps_channel_ctx_t *haps_channel_create(
++    const haps_config_t *cfg,
++    int nb_tx,
++    int nb_rx,
++    bool is_uplink,
++    double runtime_sample_rate_hz,
++    double runtime_center_frequency_hz);
++
++int haps_channel_get_delay_info(
++    const haps_channel_ctx_t *ctx,
++    haps_delay_info_t *info);
++
++int haps_channel_update(
++    haps_channel_ctx_t *ctx,
++    uint64_t timestamp,
++    int nb_samples);
++
++int haps_channel_process(
++    haps_channel_ctx_t *ctx,
++    c16_t **input,
++    int nb_tx,
++    cf_t **output,
++    int nb_rx,
++    int nb_samples,
++    uint64_t timestamp);
++
++/* Copies of the computed static channel state, owned by the caller. */
++int haps_channel_get_snapshot(
++    const haps_channel_ctx_t *ctx,
++    haps_geometry_result_t *geometry,
++    haps_propagation_result_t *propagation);
++
++void haps_channel_destroy(
++    haps_channel_ctx_t *ctx);
++
++#ifdef __cplusplus
++}
++#endif
++
++#endif
+diff --git a/radio/rfsimulator/haps/haps_cloud.c b/radio/rfsimulator/haps/haps_cloud.c
+new file mode 100644
+index 0000000..e69de29
+diff --git a/radio/rfsimulator/haps/haps_cloud.h b/radio/rfsimulator/haps/haps_cloud.h
+new file mode 100644
+index 0000000..e69de29
+diff --git a/radio/rfsimulator/haps/haps_config.c b/radio/rfsimulator/haps/haps_config.c
+new file mode 100644
+index 0000000..4e339e9
+--- /dev/null
++++ b/radio/rfsimulator/haps/haps_config.c
+@@ -0,0 +1,700 @@
++#include "haps_config.h"
++#include "haps_rain.h"
++
++#include <math.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <strings.h>
++
++#include "common/config/config_userapi.h"
++#include "common/utils/LOG/log.h"
++
++#define HAPS_CONFIG_LIST_NAME "hapsmod"
++
++static haps_scenario_t parse_scenario(const char *value)
++{
++  if (value == NULL)
++    return HAPS_SCENARIO_RURAL;
++
++  if (strcasecmp(value, "dense_urban") == 0)
++    return HAPS_SCENARIO_DENSE_URBAN;
++
++  if (strcasecmp(value, "urban") == 0)
++    return HAPS_SCENARIO_URBAN;
++
++  if (strcasecmp(value, "suburban") == 0)
++    return HAPS_SCENARIO_SUBURBAN;
++
++  return HAPS_SCENARIO_RURAL;
++}
++
++static haps_los_mode_t parse_los_mode(const char *value)
++{
++  if (value == NULL)
++    return HAPS_LOS_FORCED;
++
++  if (strcasecmp(value, "forced_nlos") == 0)
++    return HAPS_NLOS_FORCED;
++
++  if (strcasecmp(value, "probabilistic") == 0)
++    return HAPS_LOS_PROBABILISTIC;
++
++  return HAPS_LOS_FORCED;
++}
++
++static haps_terminal_type_t parse_terminal_type(const char *value)
++{
++  if (value == NULL)
++    return HAPS_TERMINAL_OUTDOOR;
++
++  if (strcasecmp(value, "indoor_traditional") == 0)
++    return HAPS_TERMINAL_INDOOR_TRADITIONAL;
++
++  if (strcasecmp(value, "indoor_thermally_efficient") == 0)
++    return HAPS_TERMINAL_INDOOR_THERMALLY_EFFICIENT;
++
++  return HAPS_TERMINAL_OUTDOOR;
++}
++
++static haps_tdl_profile_t parse_tdl_profile(const char *value)
++{
++  if (value == NULL)
++    return HAPS_NTN_TDL_D;
++
++  if (strcasecmp(value, "NTN-TDL-A") == 0)
++    return HAPS_NTN_TDL_A;
++
++  if (strcasecmp(value, "NTN-TDL-B") == 0)
++    return HAPS_NTN_TDL_B;
++
++  if (strcasecmp(value, "NTN-TDL-C") == 0)
++    return HAPS_NTN_TDL_C;
++
++  return HAPS_NTN_TDL_D;
++}
++
++void haps_config_set_defaults(haps_config_t *cfg)
++{
++  if (cfg == NULL)
++    return;
++
++  memset(cfg, 0, sizeof(*cfg));
++
++  cfg->carrier_frequency_hz = 3619200000.0;
++  cfg->sample_rate_hz = 61440000.0;
++
++  cfg->haps_latitude_deg = 39.9334;
++  cfg->haps_longitude_deg = 32.8597;
++  cfg->haps_altitude_m = 20000.0;
++
++  cfg->ue_latitude_deg = 39.9334;
++  cfg->ue_longitude_deg = 32.8597;
++  cfg->ue_altitude_m = 0.0;
++
++  cfg->scenario = HAPS_SCENARIO_RURAL;
++  cfg->los_mode = HAPS_LOS_FORCED;
++  cfg->terminal_type = HAPS_TERMINAL_OUTDOOR;
++  cfg->bel_percentile = 0.50;
++  cfg->tdl_profile = HAPS_NTN_TDL_D;
++
++  cfg->delay_spread_s = 100.0e-9;
++  cfg->k_factor_db = 11.707;
++
++  /*
++   * İlk test identity kanal olsun.
++   */
++  cfg->link_budget_offset_db = 0.0;
++  cfg->fixed_doppler_hz = 0.0;
++
++  cfg->gas_surface_pressure_hpa = 1013.25;
++  cfg->gas_surface_temperature_k = 288.15;
++  cfg->gas_surface_water_vapour_density_g_m3 = 7.5;
++  cfg->gas_integrated_water_vapour_kg_m2 = 15.0;
++  
++  
++  cfg->enable_rain = false;
++  cfg->rain_mode =
++      HAPS_RAIN_DISABLED;
++
++  cfg->rain_rate_mm_per_h = 0.0;
++  cfg->rain_height_km = 5.0;
++  cfg->rain_polarization_tilt_deg = 45.0;
++
++
++  cfg->enable_fspl = false;
++  cfg->enable_clutter = false;
++  cfg->enable_shadow_fading = false;
++  cfg->enable_building_entry_loss = false;
++
++  cfg->enable_gas = false;
++  cfg->enable_rain = false;
++  cfg->enable_cloud = false;
++  cfg->enable_scintillation = false;
++
++  cfg->enable_fast_fading = false;
++  cfg->enable_propagation_delay = false;
++  cfg->enable_fractional_delay = false;
++  cfg->enable_doppler = false;
++  cfg->enable_noise = false;
++
++  cfg->random_seed = 12345;
++  cfg->update_period_s = 0.001;
++}
++
++int haps_load_config(
++    const char *requested_model_name,
++    haps_config_t *cfg)
++{
++  if (requested_model_name == NULL || cfg == NULL)
++    return -1;
++
++  haps_config_set_defaults(cfg);
++
++  paramdef_t params[] = {
++      {"model_name", "RFsimulator channel model name", 0,
++       .strptr = NULL, .defstrval = "", TYPE_STRING, 0},
++
++      {"carrier_frequency_hz", "Carrier frequency in Hz", 0,
++       .dblptr = NULL, .defdblval = 3619200000.0, TYPE_DOUBLE, 0},
++
++      {"sample_rate_hz", "Sample rate in samples per second", 0,
++       .dblptr = NULL, .defdblval = 61440000.0, TYPE_DOUBLE, 0},
++
++      {"haps_latitude_deg", "HAPS latitude", 0,
++       .dblptr = NULL, .defdblval = 39.9334, TYPE_DOUBLE, 0},
++
++      {"haps_longitude_deg", "HAPS longitude", 0,
++       .dblptr = NULL, .defdblval = 32.8597, TYPE_DOUBLE, 0},
++
++      {"haps_altitude_m", "HAPS altitude", 0,
++       .dblptr = NULL, .defdblval = 20000.0, TYPE_DOUBLE, 0},
++
++      {"ue_latitude_deg", "UE latitude", 0,
++       .dblptr = NULL, .defdblval = 39.9334, TYPE_DOUBLE, 0},
++
++      {"ue_longitude_deg", "UE longitude", 0,
++       .dblptr = NULL, .defdblval = 32.8597, TYPE_DOUBLE, 0},
++
++      {"ue_altitude_m", "UE altitude", 0,
++       .dblptr = NULL, .defdblval = 0.0, TYPE_DOUBLE, 0},
++
++      {"scenario", "3GPP scenario", 0,
++       .strptr = NULL, .defstrval = "rural", TYPE_STRING, 0},
++
++      {"los_mode", "LOS mode", 0,
++       .strptr = NULL, .defstrval = "forced_los", TYPE_STRING, 0},
++
++      {"terminal_type", "Terminal type", 0,
++       .strptr = NULL, .defstrval = "outdoor", TYPE_STRING, 0},
++
++      {"bel_percentile",
++      "ITU-R P.2109 loss not-exceeded probability",
++       0,
++       .dblptr = NULL,
++       .defdblval = 0.50,
++        TYPE_DOUBLE,
++       0},
++
++      {"tdl_profile", "NTN TDL profile", 0,
++       .strptr = NULL, .defstrval = "NTN-TDL-D", TYPE_STRING, 0},
++
++      {"delay_spread_s", "Delay spread in seconds", 0,
++       .dblptr = NULL, .defdblval = 100.0e-9, TYPE_DOUBLE, 0},
++
++      {"k_factor_db", "Rice K factor in dB", 0,
++       .dblptr = NULL, .defdblval = 11.707, TYPE_DOUBLE, 0},
++
++      {"link_budget_offset_db", "RFsim IQ calibration offset", 0,
++       .dblptr = NULL, .defdblval = 0.0, TYPE_DOUBLE, 0},
++      
++      {"fixed_doppler_hz",
++       "Fixed Doppler frequency shift in Hz",
++        0,
++        .dblptr = NULL,
++        .defdblval = 0.0,
++        TYPE_DOUBLE,
++       0},
++
++     {"rain_mode",
++       "Rain model: 0 disabled, 1 fixed layer, 2 ITU statistical",
++       0,
++       .iptr = NULL,
++       .defintval = HAPS_RAIN_DISABLED,
++       TYPE_INT,
++       0},
++
++      {"rain_rate_mm_per_h",
++       "Rain rate in millimetres per hour",
++       0,
++       .dblptr = NULL,
++       .defdblval = 0.0,
++       TYPE_DOUBLE,
++       0},
++
++      {"rain_height_km",
++       "Upper height of rain layer in kilometres",
++       0,
++       .dblptr = NULL,
++       .defdblval = 5.0,
++       TYPE_DOUBLE,
++       0},
++
++      {"rain_polarization_tilt_deg",
++       "Polarization tilt angle for ITU-R P.838-3",
++       0,
++       .dblptr = NULL,
++       .defdblval = 45.0,
++       TYPE_DOUBLE,
++       0},
++
++      {"gas_surface_pressure_hpa",
++       "ITU-R P.676 surface pressure in hPa",
++       0,
++       .dblptr = NULL,
++       .defdblval = 1013.25,
++       TYPE_DOUBLE,
++       0},
++
++
++
++{"gas_surface_temperature_k",
++ "ITU-R P.676 surface temperature in K",
++ 0,
++ .dblptr = NULL,
++ .defdblval = 288.15,
++ TYPE_DOUBLE,
++ 0},
++
++{"gas_surface_water_vapour_density_g_m3",
++ "ITU-R P.676 surface water vapour density in g/m3",
++ 0,
++ .dblptr = NULL,
++ .defdblval = 7.5,
++ TYPE_DOUBLE,
++ 0},
++
++{"gas_integrated_water_vapour_kg_m2",
++ "ITU-R P.676 integrated water vapour in kg/m2",
++ 0,
++ .dblptr = NULL,
++ .defdblval = 15.0,
++ TYPE_DOUBLE,
++ 0},
++
++      {"enable_fspl", "Enable free-space path loss", 0,
++       .iptr = NULL, .defintval = 0, TYPE_INT, 0},
++
++      {"enable_clutter", "Enable clutter loss", 0,
++       .iptr = NULL, .defintval = 0, TYPE_INT, 0},
++
++      {"enable_shadow_fading", "Enable shadow fading", 0,
++       .iptr = NULL, .defintval = 0, TYPE_INT, 0},
++
++      {"enable_building_entry_loss", "Enable building entry loss", 0,
++       .iptr = NULL, .defintval = 0, TYPE_INT, 0},
++
++      {"enable_gas", "Enable gaseous attenuation", 0,
++       .iptr = NULL, .defintval = 0, TYPE_INT, 0},
++
++      {"enable_rain", "Enable rain attenuation", 0,
++       .iptr = NULL, .defintval = 0, TYPE_INT, 0},
++
++      {"enable_cloud", "Enable cloud attenuation", 0,
++       .iptr = NULL, .defintval = 0, TYPE_INT, 0},
++
++      {"enable_scintillation", "Enable scintillation", 0,
++       .iptr = NULL, .defintval = 0, TYPE_INT, 0},
++
++      {"enable_fast_fading", "Enable NTN TDL fading", 0,
++       .iptr = NULL, .defintval = 0, TYPE_INT, 0},
++
++      {"enable_propagation_delay", "Enable absolute delay", 0,
++       .iptr = NULL, .defintval = 0, TYPE_INT, 0},
++
++      {"enable_fractional_delay", "Enable fractional delay", 0,
++       .iptr = NULL, .defintval = 0, TYPE_INT, 0},
++
++      {"enable_doppler", "Enable Doppler", 0,
++       .iptr = NULL, .defintval = 0, TYPE_INT, 0},
++
++      {"enable_noise", "Enable HAPS internal noise", 0,
++       .iptr = NULL, .defintval = 0, TYPE_INT, 0},
++
++      {"random_seed", "Random seed", 0,
++       .uptr = NULL, .defintval = 12345, TYPE_UINT, 0},
++
++      {"update_period_s", "Channel update period", 0,
++       .dblptr = NULL, .defdblval = 0.001, TYPE_DOUBLE, 0},
++  };
++
++  const int num_params = sizeof(params) / sizeof(params[0]);
++
++  paramlist_def_t haps_list;
++  memset(&haps_list, 0, sizeof(haps_list));
++
++  snprintf(
++      haps_list.listname,
++      sizeof(haps_list.listname),
++      "%s",
++      HAPS_CONFIG_LIST_NAME);
++
++  /*
++   * hapsmod top-level bir config listesidir.
++   */
++  config_getlist(
++      config_get_if(),
++      &haps_list,
++      params,
++      num_params,
++      NULL);
++
++  if (haps_list.numelt <= 0) {
++    LOG_E(HW, "HAPS config list '%s' not found\n",
++          HAPS_CONFIG_LIST_NAME);
++    return -1;
++  }
++
++#define PARAM_INDEX(name) \
++  config_paramidx_fromname(params, num_params, name)
++
++  const int idx_model = PARAM_INDEX("model_name");
++  const int idx_fc = PARAM_INDEX("carrier_frequency_hz");
++  const int idx_fs = PARAM_INDEX("sample_rate_hz");
++
++  const int idx_haps_lat = PARAM_INDEX("haps_latitude_deg");
++  const int idx_haps_lon = PARAM_INDEX("haps_longitude_deg");
++  const int idx_haps_alt = PARAM_INDEX("haps_altitude_m");
++
++  const int idx_ue_lat = PARAM_INDEX("ue_latitude_deg");
++  const int idx_ue_lon = PARAM_INDEX("ue_longitude_deg");
++  const int idx_ue_alt = PARAM_INDEX("ue_altitude_m");
++
++  const int idx_scenario = PARAM_INDEX("scenario");
++  const int idx_los = PARAM_INDEX("los_mode");
++  const int idx_terminal = PARAM_INDEX("terminal_type");
++  const int idx_bel_percentile = PARAM_INDEX("bel_percentile");
++  const int idx_tdl = PARAM_INDEX("tdl_profile");
++
++  const int idx_ds = PARAM_INDEX("delay_spread_s");
++  const int idx_k = PARAM_INDEX("k_factor_db");
++  const int idx_cal = PARAM_INDEX("link_budget_offset_db");
++  const int idx_fixed_doppler = PARAM_INDEX("fixed_doppler_hz");
++
++    const int idx_rain_mode =
++      PARAM_INDEX("rain_mode");
++
++  const int idx_rain_rate =
++      PARAM_INDEX("rain_rate_mm_per_h");
++
++  const int idx_rain_height =
++      PARAM_INDEX("rain_height_km");
++
++  const int idx_rain_polarization =
++      PARAM_INDEX("rain_polarization_tilt_deg");
++
++  const int idx_fspl = PARAM_INDEX("enable_fspl");
++  const int idx_clutter = PARAM_INDEX("enable_clutter");
++  const int idx_shadow = PARAM_INDEX("enable_shadow_fading");
++  const int idx_bel = PARAM_INDEX("enable_building_entry_loss");
++
++  const int idx_gas = PARAM_INDEX("enable_gas");
++  const int idx_rain = PARAM_INDEX("enable_rain");
++  const int idx_cloud = PARAM_INDEX("enable_cloud");
++  const int idx_scint = PARAM_INDEX("enable_scintillation");
++
++  const int idx_gas_pressure =
++    PARAM_INDEX("gas_surface_pressure_hpa");
++
++const int idx_gas_temperature =
++    PARAM_INDEX("gas_surface_temperature_k");
++
++const int idx_gas_rho =
++    PARAM_INDEX(
++        "gas_surface_water_vapour_density_g_m3");
++
++const int idx_gas_integrated_water =
++    PARAM_INDEX(
++        "gas_integrated_water_vapour_kg_m2");
++
++  const int idx_fast = PARAM_INDEX("enable_fast_fading");
++  const int idx_delay = PARAM_INDEX("enable_propagation_delay");
++  const int idx_fractional = PARAM_INDEX("enable_fractional_delay");
++  const int idx_doppler = PARAM_INDEX("enable_doppler");
++  const int idx_noise = PARAM_INDEX("enable_noise");
++
++  const int idx_seed = PARAM_INDEX("random_seed");
++  const int idx_update = PARAM_INDEX("update_period_s");
++
++#undef PARAM_INDEX
++
++  for (int i = 0; i < haps_list.numelt; ++i) {
++    const char *model_name =
++        *(haps_list.paramarray[i][idx_model].strptr);
++
++    if (model_name == NULL ||
++        strcmp(model_name, requested_model_name) != 0) {
++      continue;
++    }
++
++    snprintf(
++        cfg->model_name,
++        sizeof(cfg->model_name),
++        "%s",
++        model_name);
++
++    cfg->carrier_frequency_hz =
++        *(haps_list.paramarray[i][idx_fc].dblptr);
++
++    cfg->sample_rate_hz =
++        *(haps_list.paramarray[i][idx_fs].dblptr);
++
++    cfg->haps_latitude_deg =
++        *(haps_list.paramarray[i][idx_haps_lat].dblptr);
++
++    cfg->haps_longitude_deg =
++        *(haps_list.paramarray[i][idx_haps_lon].dblptr);
++
++    cfg->haps_altitude_m =
++        *(haps_list.paramarray[i][idx_haps_alt].dblptr);
++
++    cfg->ue_latitude_deg =
++        *(haps_list.paramarray[i][idx_ue_lat].dblptr);
++
++    cfg->ue_longitude_deg =
++        *(haps_list.paramarray[i][idx_ue_lon].dblptr);
++
++    cfg->ue_altitude_m =
++        *(haps_list.paramarray[i][idx_ue_alt].dblptr);
++
++    cfg->scenario =
++        parse_scenario(
++            *(haps_list.paramarray[i][idx_scenario].strptr));
++
++    cfg->los_mode =
++        parse_los_mode(
++            *(haps_list.paramarray[i][idx_los].strptr));
++
++    cfg->terminal_type =
++        parse_terminal_type(
++            *(haps_list.paramarray[i][idx_terminal].strptr));
++    
++    cfg->bel_percentile =
++    *(haps_list.paramarray[i][idx_bel_percentile].dblptr);
++
++    cfg->tdl_profile =
++        parse_tdl_profile(
++            *(haps_list.paramarray[i][idx_tdl].strptr));
++
++    cfg->delay_spread_s =
++        *(haps_list.paramarray[i][idx_ds].dblptr);
++
++    cfg->k_factor_db =
++        *(haps_list.paramarray[i][idx_k].dblptr);
++
++    cfg->link_budget_offset_db =
++        *(haps_list.paramarray[i][idx_cal].dblptr);
++
++
++   cfg->gas_surface_pressure_hpa =
++    *(haps_list.paramarray[i]
++          [idx_gas_pressure].dblptr);
++
++cfg->gas_surface_temperature_k =
++    *(haps_list.paramarray[i]
++          [idx_gas_temperature].dblptr);
++
++cfg->gas_surface_water_vapour_density_g_m3 =
++    *(haps_list.paramarray[i]
++          [idx_gas_rho].dblptr);
++
++cfg->gas_integrated_water_vapour_kg_m2 =
++    *(haps_list.paramarray[i]
++          [idx_gas_integrated_water].dblptr);
++
++   
++   cfg->fixed_doppler_hz =
++    *(haps_list.paramarray[i][idx_fixed_doppler].dblptr);
++ 
++    cfg->rain_mode =
++        *(haps_list.paramarray[i]
++              [idx_rain_mode].iptr);
++
++    cfg->rain_rate_mm_per_h =
++        *(haps_list.paramarray[i]
++              [idx_rain_rate].dblptr);
++
++    cfg->rain_height_km =
++        *(haps_list.paramarray[i]
++              [idx_rain_height].dblptr);
++
++    cfg->rain_polarization_tilt_deg =
++        *(haps_list.paramarray[i]
++              [idx_rain_polarization].dblptr);
++
++   cfg->enable_fspl =
++        *(haps_list.paramarray[i][idx_fspl].iptr) != 0;
++
++    cfg->enable_clutter =
++        *(haps_list.paramarray[i][idx_clutter].iptr) != 0;
++
++    cfg->enable_shadow_fading =
++        *(haps_list.paramarray[i][idx_shadow].iptr) != 0;
++
++    cfg->enable_building_entry_loss =
++        *(haps_list.paramarray[i][idx_bel].iptr) != 0;
++
++    cfg->enable_gas =
++        *(haps_list.paramarray[i][idx_gas].iptr) != 0;
++
++    cfg->enable_rain =
++        *(haps_list.paramarray[i][idx_rain].iptr) != 0;
++
++    cfg->enable_cloud =
++        *(haps_list.paramarray[i][idx_cloud].iptr) != 0;
++
++    cfg->enable_scintillation =
++        *(haps_list.paramarray[i][idx_scint].iptr) != 0;
++
++    cfg->enable_fast_fading =
++        *(haps_list.paramarray[i][idx_fast].iptr) != 0;
++
++    cfg->enable_propagation_delay =
++        *(haps_list.paramarray[i][idx_delay].iptr) != 0;
++
++    cfg->enable_fractional_delay =
++        *(haps_list.paramarray[i][idx_fractional].iptr) != 0;
++
++    cfg->enable_doppler =
++        *(haps_list.paramarray[i][idx_doppler].iptr) != 0;
++
++    cfg->enable_noise =
++        *(haps_list.paramarray[i][idx_noise].iptr) != 0;
++
++    cfg->random_seed =
++        *(haps_list.paramarray[i][idx_seed].uptr);
++
++    cfg->update_period_s =
++        *(haps_list.paramarray[i][idx_update].dblptr);
++ 
++    
++    if (cfg->enable_rain) {
++
++      if (cfg->rain_mode !=
++              HAPS_RAIN_FIXED_UNIFORM_LAYER &&
++          cfg->rain_mode !=
++              HAPS_RAIN_ITU_STATISTICAL) {
++
++        LOG_E(
++            HW,
++            "Invalid HAPS rain mode: %d\n",
++            cfg->rain_mode);
++
++        return -1;
++      }
++
++      if (!isfinite(
++              cfg->rain_rate_mm_per_h) ||
++          cfg->rain_rate_mm_per_h < 0.0) {
++
++        LOG_E(
++            HW,
++            "Invalid HAPS rain rate: %.6f mm/h\n",
++            cfg->rain_rate_mm_per_h);
++
++        return -1;
++      }
++
++      if (!isfinite(
++              cfg->rain_height_km) ||
++          cfg->rain_height_km < 0.0) {
++
++        LOG_E(
++            HW,
++            "Invalid HAPS rain height: %.6f km\n",
++            cfg->rain_height_km);
++
++        return -1;
++      }
++
++      if (!isfinite(
++              cfg->rain_polarization_tilt_deg) ||
++          cfg->rain_polarization_tilt_deg <
++              0.0 ||
++          cfg->rain_polarization_tilt_deg >
++              90.0) {
++
++        LOG_E(
++            HW,
++            "Invalid HAPS rain polarization "
++            "tilt: %.6f deg\n",
++            cfg->rain_polarization_tilt_deg);
++
++        return -1;
++      }
++
++      if (cfg->rain_mode ==
++          HAPS_RAIN_ITU_STATISTICAL) {
++
++        LOG_E(
++            HW,
++            "HAPS ITU statistical rain mode "
++            "is not implemented yet\n");
++
++        return -1;
++      }
++    }
++
++
++    LOG_I(
++    HW,
++    "HAPS config loaded: model=%s, fc=%.3f GHz, "
++    "fs=%.2f Msps, altitude=%.1f m, "
++    "FSPL=%d Doppler=%d fixedDoppler=%.2f Hz\n",
++    cfg->model_name,
++    cfg->carrier_frequency_hz / 1.0e9,
++    cfg->sample_rate_hz / 1.0e6,
++    cfg->haps_altitude_m,
++    cfg->enable_fspl,
++    cfg->enable_doppler,
++    cfg->fixed_doppler_hz);
++
++
++    LOG_I(
++        HW,
++        "HAPS GAS CONFIG: "
++        "model=%s enable_gas=%d "
++        "P=%.2f hPa T=%.2f K "
++        "rho=%.3f g/m3 V=%.3f kg/m2\n",
++        cfg->model_name,
++        cfg->enable_gas,
++        cfg->gas_surface_pressure_hpa,
++        cfg->gas_surface_temperature_k,
++        cfg->gas_surface_water_vapour_density_g_m3,
++        cfg->gas_integrated_water_vapour_kg_m2);
++
++
++    LOG_I(
++        HW,
++        "HAPS RAIN CONFIG: "
++        "model=%s enable_rain=%d "
++        "mode=%d R=%.3f mm/h "
++        "rain_height=%.3f km "
++        "polarization_tilt=%.2f deg\n",
++        cfg->model_name,
++        cfg->enable_rain,
++        cfg->rain_mode,
++        cfg->rain_rate_mm_per_h,
++        cfg->rain_height_km,
++        cfg->rain_polarization_tilt_deg);
++
++  return 0;
++  }
++
++  LOG_E(
++      HW,
++      "No HAPS config entry found for model %s\n",
++      requested_model_name);
++
++  return -1;
++}
+diff --git a/radio/rfsimulator/haps/haps_config.h b/radio/rfsimulator/haps/haps_config.h
+new file mode 100644
+index 0000000..78881bf
+--- /dev/null
++++ b/radio/rfsimulator/haps/haps_config.h
+@@ -0,0 +1,119 @@
++#ifndef HAPS_CONFIG_H
++#define HAPS_CONFIG_H
++
++#include <stdbool.h>
++#include <stdint.h>
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++typedef enum {
++  HAPS_SCENARIO_DENSE_URBAN = 0,
++  HAPS_SCENARIO_URBAN,
++  HAPS_SCENARIO_SUBURBAN,
++  HAPS_SCENARIO_RURAL
++} haps_scenario_t;
++
++typedef enum {
++  HAPS_LOS_FORCED = 0,
++  HAPS_NLOS_FORCED,
++  HAPS_LOS_PROBABILISTIC
++} haps_los_mode_t;
++
++typedef enum {
++  HAPS_TERMINAL_OUTDOOR = 0,
++  HAPS_TERMINAL_INDOOR_TRADITIONAL,
++  HAPS_TERMINAL_INDOOR_THERMALLY_EFFICIENT
++} haps_terminal_type_t;
++
++typedef enum {
++  HAPS_NTN_TDL_A = 0,
++  HAPS_NTN_TDL_B,
++  HAPS_NTN_TDL_C,
++  HAPS_NTN_TDL_D
++} haps_tdl_profile_t;
++
++typedef struct {
++  char model_name[64];
++
++  /*
++   * Temel RF parametreleri.
++   * Bu modülde birimler açıkça Hz olarak tutulmaktadır.
++   */
++  double carrier_frequency_hz;
++  double sample_rate_hz;
++
++  /*
++   * WGS-84 koordinatları.
++   */
++  double haps_latitude_deg;
++  double haps_longitude_deg;
++  double haps_altitude_m;
++
++  double ue_latitude_deg;
++  double ue_longitude_deg;
++  double ue_altitude_m;
++
++
++  
++  int rain_mode;
++
++  double rain_rate_mm_per_h;
++  double rain_height_km;
++  double rain_polarization_tilt_deg;
++
++  double gas_surface_pressure_hpa;
++  double gas_surface_temperature_k;
++  double gas_surface_water_vapour_density_g_m3;
++  double gas_integrated_water_vapour_kg_m2;
++
++  haps_scenario_t scenario;
++  haps_los_mode_t los_mode;
++  haps_terminal_type_t terminal_type;
++  double bel_percentile;
++  haps_tdl_profile_t tdl_profile;
++
++  double delay_spread_s;
++  double k_factor_db;
++
++  /*
++   * OAI'nin normalize IQ seviyesi ile fiziksel link bütçesi
++   * arasındaki kalibrasyon için kullanılır.
++   *
++   * applied_loss = total_loss - link_budget_offset_db
++   */
++  double link_budget_offset_db;
++
++  double fixed_doppler_hz;
++  bool enable_fspl;
++  bool enable_clutter;
++  bool enable_shadow_fading;
++  bool enable_building_entry_loss;
++
++  bool enable_gas;
++  bool enable_rain;
++  bool enable_cloud;
++  bool enable_scintillation;
++
++  bool enable_fast_fading;
++  bool enable_propagation_delay;
++  bool enable_fractional_delay;
++  bool enable_doppler;
++  bool enable_noise;
++
++  uint32_t random_seed;
++  double update_period_s;
++} haps_config_t;
++
++void haps_config_set_defaults(haps_config_t *cfg);
++
++int haps_load_config(
++    const char *model_name,
++    haps_config_t *cfg);
++
++#ifdef __cplusplus
++}
++#endif
++
++#endif
+diff --git a/radio/rfsimulator/haps/haps_gas.c b/radio/rfsimulator/haps/haps_gas.c
+new file mode 100644
+index 0000000..800e698
+--- /dev/null
++++ b/radio/rfsimulator/haps/haps_gas.c
+@@ -0,0 +1,747 @@
++#include "haps_gas.h"
++
++#include <math.h>
++#include <stddef.h>
++#include <string.h>
++
++#define HAPS_DEG_TO_RAD \
++  0.01745329251994329577
++
++typedef struct {
++  double f0;
++  double a1;
++  double a2;
++  double a3;
++  double a4;
++  double a5;
++  double a6;
++} p676_oxygen_line_t;
++
++typedef struct {
++  double frequency_ghz;
++  double c1;
++  double c2;
++  double c3;
++  double c4;
++} p676_coeff_row_t;
++
++/*
++ * ITU-R P.676-13 Annex 1, Table 1:
++ * Oxygen spectroscopic data.
++ */
++static const p676_oxygen_line_t oxygen_lines[] = {
++    {50.474214, 0.975, 9.651, 6.690,
++     0.0, 2.566, 6.850},
++
++    {50.987745, 2.529, 8.653, 7.170,
++     0.0, 2.246, 6.800},
++
++    {51.503360, 6.193, 7.709, 7.640,
++     0.0, 1.947, 6.729},
++
++    {52.021429, 14.320, 6.819, 8.110,
++     0.0, 1.667, 6.640},
++
++    {52.542418, 31.240, 5.983, 8.580,
++     0.0, 1.388, 6.526},
++
++    {53.066934, 64.290, 5.201, 9.060,
++     0.0, 1.349, 6.206},
++
++    {53.595775, 124.600, 4.474, 9.550,
++     0.0, 2.227, 5.085},
++
++    {54.130025, 227.300, 3.800, 9.960,
++     0.0, 3.170, 3.750},
++
++    {54.671180, 389.700, 3.182, 10.370,
++     0.0, 3.558, 2.654},
++
++    {55.221384, 627.100, 2.618, 10.890,
++     0.0, 2.560, 2.952},
++
++    {55.783815, 945.300, 2.109, 11.340,
++     0.0, -1.172, 6.135},
++
++    {56.264774, 543.400, 0.014, 17.030,
++     0.0, 3.525, -0.978},
++
++    {56.363399, 1331.800, 1.654, 11.890,
++     0.0, -2.378, 6.547},
++
++    {56.968211, 1746.600, 1.255, 12.230,
++     0.0, -3.545, 6.451},
++
++    {57.612486, 2120.100, 0.910, 12.620,
++     0.0, -5.416, 6.056},
++
++    {58.323877, 2363.700, 0.621, 12.950,
++     0.0, -1.932, 0.436},
++
++    {58.446588, 1442.100, 0.083, 14.910,
++     0.0, 6.768, -1.273},
++
++    {59.164204, 2379.900, 0.387, 13.530,
++     0.0, -6.561, 2.309},
++
++    {59.590983, 2090.700, 0.207, 14.080,
++     0.0, 6.957, -0.776},
++
++    {60.306056, 2103.400, 0.207, 14.150,
++     0.0, -6.395, 0.699},
++
++    {60.434778, 2438.000, 0.386, 13.390,
++     0.0, 6.342, -2.825},
++
++    {61.150562, 2479.500, 0.621, 12.920,
++     0.0, 1.014, -0.584},
++
++    {61.800158, 2275.900, 0.910, 12.630,
++     0.0, 5.014, -6.619},
++
++    {62.411220, 1915.400, 1.255, 12.170,
++     0.0, 3.029, -6.759},
++
++    {62.486253, 1503.000, 0.083, 15.130,
++     0.0, -4.499, 0.844},
++
++    {62.997984, 1490.200, 1.654, 11.740,
++     0.0, 1.856, -6.675},
++
++    {63.568526, 1078.000, 2.108, 11.340,
++     0.0, 0.658, -6.139},
++
++    {64.127775, 728.700, 2.617, 10.880,
++     0.0, -3.036, -2.895},
++
++    {64.678910, 461.300, 3.181, 10.380,
++     0.0, -3.968, -2.590},
++
++    {65.224078, 274.000, 3.800, 9.960,
++     0.0, -3.528, -3.680},
++
++    {65.764779, 153.000, 4.473, 9.550,
++     0.0, -2.548, -5.002},
++
++    {66.302096, 80.400, 5.200, 9.060,
++     0.0, -1.660, -6.091},
++
++    {66.836834, 39.800, 5.982, 8.580,
++     0.0, -1.680, -6.393},
++
++    {67.369601, 18.560, 6.818, 8.110,
++     0.0, -1.956, -6.475},
++
++    {67.900868, 8.172, 7.708, 7.640,
++     0.0, -2.216, -6.545},
++
++    {68.431006, 3.397, 8.652, 7.170,
++     0.0, -2.492, -6.600},
++
++    {68.960312, 1.334, 9.650, 6.690,
++     0.0, -2.773, -6.650},
++
++    {118.750334, 940.300, 0.010, 16.640,
++     0.0, -0.439, 0.079},
++
++    {368.498246, 67.400, 0.048, 16.400,
++     0.0, 0.000, 0.000},
++
++    {424.763020, 637.700, 0.044, 16.400,
++     0.0, 0.000, 0.000},
++
++    {487.249273, 237.400, 0.049, 16.000,
++     0.0, 0.000, 0.000},
++
++    {715.392902, 98.100, 0.145, 16.000,
++     0.0, 0.000, 0.000},
++
++    {773.839490, 572.300, 0.141, 16.200,
++     0.0, 0.000, 0.000},
++
++    {834.145546, 183.100, 0.145, 14.700,
++     0.0, 0.000, 0.000},
++};
++
++/*
++ * ITU-R P.676-13 related data file Part 1.
++ *
++ * Columns:
++ * frequency, a_o, b_o, c_o, d_o
++ *
++ * 1-10 GHz subset.
++ */
++static const p676_coeff_row_t
++    oxygen_height_coeffs[] = {
++        {1.0, -2.700258e+00, 2.724587e-02,
++         5.971574e-04, 5.130385e-04},
++
++        {1.5, -2.462805e+00, 2.715168e-02,
++         -1.203684e-05, -7.200561e-05},
++
++        {2.0, -2.378094e+00, 2.717326e-02,
++         -2.529529e-04, -2.835906e-04},
++
++        {2.5, -2.338989e+00, 2.719666e-02,
++         -3.702004e-04, -3.836344e-04},
++
++        {3.0, -2.318075e+00, 2.721466e-02,
++         -4.355725e-04, -4.391716e-04},
++
++        {3.5, -2.305844e+00, 2.722870e-02,
++         -4.756334e-04, -4.736482e-04},
++
++        {4.0, -2.298307e+00, 2.724034e-02,
++         -5.019467e-04, -4.969635e-04},
++
++        {4.5, -2.293550e+00, 2.725062e-02,
++         -5.201752e-04, -5.138778e-04},
++
++        {5.0, -2.290567e+00, 2.726019e-02,
++         -5.333499e-04, -5.269089e-04},
++
++        {5.5, -2.288783e+00, 2.726944e-02,
++         -5.432096e-04, -5.374891e-04},
++
++        {6.0, -2.287853e+00, 2.727865e-02,
++         -5.508087e-04, -5.464816e-04},
++
++        {6.5, -2.287558e+00, 2.728797e-02,
++         -5.568161e-04, -5.544314e-04},
++
++        {7.0, -2.287754e+00, 2.729753e-02,
++         -5.616726e-04, -5.616960e-04},
++
++        {7.5, -2.288343e+00, 2.730739e-02,
++         -5.656783e-04, -5.685178e-04},
++
++        {8.0, -2.289256e+00, 2.731762e-02,
++         -5.690426e-04, -5.750656e-04},
++
++        {8.5, -2.290444e+00, 2.732823e-02,
++         -5.719159e-04, -5.814595e-04},
++
++        {9.0, -2.291868e+00, 2.733927e-02,
++         -5.744078e-04, -5.877869e-04},
++
++        {9.5, -2.293501e+00, 2.735073e-02,
++         -5.766000e-04, -5.941126e-04},
++
++        {10.0, -2.295323e+00, 2.736264e-02,
++         -5.785541e-04, -6.004850e-04},
++};
++
++/*
++ * ITU-R P.676-13 related data file Part 2.
++ *
++ * Columns:
++ * frequency, a_V, b_V, c_V, d_V
++ *
++ * 1-10 GHz subset.
++ */
++static const p676_coeff_row_t
++    water_kv_coeffs[] = {
++        {1.0, 1.175406e-05, 5.186823e-08,
++         -4.146202e-08, 5.531196e-09},
++
++        {1.5, 2.645736e-05, 1.167400e-07,
++         -9.332594e-08, 1.246423e-08},
++
++        {2.0, 4.706231e-05, 2.076291e-07,
++         -1.660041e-07, 2.220644e-08},
++
++        {2.5, 7.358981e-05, 3.246062e-07,
++         -2.595672e-07, 3.479479e-08},
++
++        {3.0, 1.060677e-04, 4.677639e-07,
++         -3.741083e-07, 5.027821e-08},
++
++        {3.5, 1.445313e-04, 6.372198e-07,
++         -5.097459e-07, 6.871883e-08},
++
++        {4.0, 1.890246e-04, 8.331178e-07,
++         -6.666258e-07, 9.019336e-08},
++
++        {4.5, 2.396014e-04, 1.055632e-06,
++         -8.449248e-07, 1.147950e-07},
++
++        {5.0, 2.963266e-04, 1.304969e-06,
++         -1.044855e-06, 1.426360e-07},
++
++        {5.5, 3.592784e-04, 1.581375e-06,
++         -1.266670e-06, 1.738499e-07},
++
++        {6.0, 4.285505e-04, 1.885137e-06,
++         -1.510668e-06, 2.085959e-07},
++
++        {6.5, 5.042551e-04, 2.216592e-06,
++         -1.777203e-06, 2.470624e-07},
++
++        {7.0, 5.865269e-04, 2.576134e-06,
++         -2.066693e-06, 2.894730e-07},
++
++        {7.5, 6.755272e-04, 2.964222e-06,
++         -2.379632e-06, 3.360922e-07},
++
++        {8.0, 7.714504e-04, 3.381387e-06,
++         -2.716601e-06, 3.872341e-07},
++
++        {8.5, 8.745313e-04, 3.828249e-06,
++         -3.078288e-06, 4.432716e-07},
++
++        {9.0, 9.850547e-04, 4.305524e-06,
++         -3.465507e-06, 5.046487e-07},
++
++        {9.5, 1.103368e-03, 4.814040e-06,
++         -3.879222e-06, 5.718950e-07},
++
++        {10.0, 1.229897e-03, 5.354749e-06,
++         -4.320579e-06, 6.456442e-07},
++};
++
++static int interpolate_coefficients(
++    const p676_coeff_row_t *table,
++    size_t count,
++    double frequency_ghz,
++    double *c1,
++    double *c2,
++    double *c3,
++    double *c4)
++{
++  if (table == NULL ||
++      count < 2 ||
++      c1 == NULL ||
++      c2 == NULL ||
++      c3 == NULL ||
++      c4 == NULL) {
++    return -1;
++  }
++
++  if (frequency_ghz <
++          table[0].frequency_ghz ||
++      frequency_ghz >
++          table[count - 1].frequency_ghz) {
++    return -2;
++  }
++
++  if (frequency_ghz ==
++      table[count - 1].frequency_ghz) {
++    *c1 = table[count - 1].c1;
++    *c2 = table[count - 1].c2;
++    *c3 = table[count - 1].c3;
++    *c4 = table[count - 1].c4;
++
++    return 0;
++  }
++
++  for (size_t i = 0;
++       i + 1 < count;
++       ++i) {
++
++    if (frequency_ghz >=
++            table[i].frequency_ghz &&
++        frequency_ghz <=
++            table[i + 1].frequency_ghz) {
++
++      const double x0 =
++          table[i].frequency_ghz;
++
++      const double x1 =
++          table[i + 1].frequency_ghz;
++
++      const double alpha =
++          (frequency_ghz - x0) /
++          (x1 - x0);
++
++      *c1 =
++          table[i].c1 +
++          alpha *
++              (table[i + 1].c1 -
++               table[i].c1);
++
++      *c2 =
++          table[i].c2 +
++          alpha *
++              (table[i + 1].c2 -
++               table[i].c2);
++
++      *c3 =
++          table[i].c3 +
++          alpha *
++              (table[i + 1].c3 -
++               table[i].c3);
++
++      *c4 =
++          table[i].c4 +
++          alpha *
++              (table[i + 1].c4 -
++               table[i].c4);
++
++      return 0;
++    }
++  }
++
++  return -3;
++}
++
++static int
++oxygen_specific_attenuation_db_per_km(
++    double frequency_ghz,
++    double total_pressure_hpa,
++    double temperature_k,
++    double water_vapour_density_g_m3,
++    double *gamma_o_db_per_km)
++{
++  if (gamma_o_db_per_km == NULL ||
++      frequency_ghz <= 0.0 ||
++      total_pressure_hpa <= 0.0 ||
++      temperature_k <= 0.0 ||
++      water_vapour_density_g_m3 < 0.0) {
++    return -1;
++  }
++
++  /*
++   * P.676-13 equation (4).
++   */
++  const double e =
++      water_vapour_density_g_m3 *
++      temperature_k /
++      216.7;
++
++  const double p =
++      total_pressure_hpa - e;
++
++  if (p <= 0.0)
++    return -2;
++
++  const double theta =
++      300.0 / temperature_k;
++
++  double n_oxygen = 0.0;
++
++  for (size_t i = 0;
++       i <
++       sizeof(oxygen_lines) /
++           sizeof(oxygen_lines[0]);
++       ++i) {
++
++    const p676_oxygen_line_t *line =
++        &oxygen_lines[i];
++
++    /*
++     * P.676-13 equation (3):
++     * oxygen line strength.
++     */
++    const double strength =
++        line->a1 *
++        1.0e-7 *
++        p *
++        pow(theta, 3.0) *
++        exp(
++            line->a2 *
++            (1.0 - theta));
++
++    /*
++     * P.676-13 equation (6a).
++     */
++    double delta_f =
++        line->a3 *
++        1.0e-4 *
++        (
++            p *
++                pow(
++                    theta,
++                    0.8 - line->a4)
++            +
++            1.1 *
++                e *
++                theta
++        );
++
++    /*
++     * P.676-13 equation (6b).
++     */
++    delta_f =
++        sqrt(
++            delta_f * delta_f +
++            2.25e-6);
++
++    /*
++     * P.676-13 equation (7).
++     */
++    const double delta =
++        (
++            line->a5 +
++            line->a6 * theta
++        ) *
++        1.0e-4 *
++        (p + e) *
++        pow(theta, 0.8);
++
++    const double lower =
++        line->f0 - frequency_ghz;
++
++    const double upper =
++        line->f0 + frequency_ghz;
++
++    /*
++     * P.676-13 equation (5):
++     * oxygen line-shape factor.
++     */
++    const double line_shape =
++        (frequency_ghz / line->f0) *
++        (
++            (
++                delta_f -
++                delta * lower
++            ) /
++            (
++                lower * lower +
++                delta_f * delta_f
++            )
++            +
++            (
++                delta_f -
++                delta * upper
++            ) /
++            (
++                upper * upper +
++                delta_f * delta_f
++            )
++        );
++
++    n_oxygen +=
++        strength * line_shape;
++  }
++
++  /*
++   * P.676-13 equation (9).
++   */
++  const double d =
++      5.6e-4 *
++      (p + e) *
++      pow(theta, 0.8);
++
++  /*
++   * P.676-13 equation (8):
++   * dry-air continuum.
++   */
++  const double dry_continuum =
++      frequency_ghz *
++      p *
++      theta *
++      theta *
++      (
++          6.14e-5 /
++          (
++              d *
++              (
++                  1.0 +
++                  pow(
++                      frequency_ghz / d,
++                      2.0)
++              )
++          )
++          +
++          1.4e-12 *
++              p *
++              pow(theta, 1.5) /
++          (
++              1.0 +
++              1.9e-5 *
++              pow(
++                  frequency_ghz,
++                  1.5)
++          )
++      );
++
++  n_oxygen += dry_continuum;
++
++  /*
++   * P.676-13 equation (30).
++   */
++  *gamma_o_db_per_km =
++      0.1820 *
++      frequency_ghz *
++      n_oxygen;
++
++  return
++      isfinite(*gamma_o_db_per_km)
++          ? 0
++          : -3;
++}
++
++int haps_gas_compute_p676_13(
++    double carrier_frequency_hz,
++    double elevation_deg,
++    double surface_pressure_hpa,
++    double surface_temperature_k,
++    double surface_water_vapour_density_g_m3,
++    double integrated_water_vapour_kg_m2,
++    haps_gas_result_t *result)
++{
++  if (result == NULL)
++    return -1;
++
++  memset(
++      result,
++      0,
++      sizeof(*result));
++
++  const double frequency_ghz =
++      carrier_frequency_hz /
++      1.0e9;
++
++  /*
++   * Bu uygulamada gömülü katsayılar
++   * 1-10 GHz aralığıyla sınırlıdır.
++   */
++  if (frequency_ghz < 1.0 ||
++      frequency_ghz > 10.0) {
++    return -2;
++  }
++
++  /*
++   * Annex 2 sin(theta) yaklaşımı için
++   * ilk sürümde 5-90 derece aralığı.
++   */
++  if (elevation_deg < 5.0 ||
++      elevation_deg > 90.0) {
++    return -3;
++  }
++
++  if (surface_pressure_hpa <= 0.0 ||
++      surface_temperature_k <= 0.0 ||
++      surface_water_vapour_density_g_m3 < 0.0 ||
++      integrated_water_vapour_kg_m2 < 0.0) {
++    return -4;
++  }
++
++  const double sin_elevation =
++      sin(
++          elevation_deg *
++          HAPS_DEG_TO_RAD);
++
++  if (sin_elevation <= 0.0)
++    return -5;
++
++  double ao = 0.0;
++  double bo = 0.0;
++  double co = 0.0;
++  double do_ = 0.0;
++
++  int rc =
++      interpolate_coefficients(
++          oxygen_height_coeffs,
++          sizeof(oxygen_height_coeffs) /
++              sizeof(
++                  oxygen_height_coeffs[0]),
++          frequency_ghz,
++          &ao,
++          &bo,
++          &co,
++          &do_);
++
++  if (rc != 0)
++    return -6;
++
++  rc =
++      oxygen_specific_attenuation_db_per_km(
++          frequency_ghz,
++          surface_pressure_hpa,
++          surface_temperature_k,
++          surface_water_vapour_density_g_m3,
++          &result->
++              oxygen_specific_db_per_km);
++
++  if (rc != 0)
++    return -7;
++
++  /*
++   * P.676-13 equation (31):
++   * oxygen equivalent height.
++   */
++  result->oxygen_equivalent_height_km =
++      ao +
++      bo * surface_temperature_k +
++      co * surface_pressure_hpa +
++      do_ *
++          surface_water_vapour_density_g_m3;
++
++  if (result->
++          oxygen_equivalent_height_km <=
++      0.0) {
++    return -8;
++  }
++
++  /*
++   * P.676-13 equation (29).
++   */
++  result->oxygen_loss_db =
++      result->
++          oxygen_specific_db_per_km *
++      result->
++          oxygen_equivalent_height_km /
++      sin_elevation;
++
++  double av = 0.0;
++  double bv = 0.0;
++  double cv = 0.0;
++  double dv = 0.0;
++
++  rc =
++      interpolate_coefficients(
++          water_kv_coeffs,
++          sizeof(water_kv_coeffs) /
++              sizeof(water_kv_coeffs[0]),
++          frequency_ghz,
++          &av,
++          &bv,
++          &cv,
++          &dv);
++
++  if (rc != 0)
++    return -9;
++
++  /*
++   * P.676-13 equation (39):
++   *
++   * K_V =
++   *   a_V +
++   *   b_V rho +
++   *   c_V T +
++   *   d_V P
++   */
++  result->water_kv_db_per_kg_m2 =
++      av +
++      bv *
++          surface_water_vapour_density_g_m3 +
++      cv *
++          surface_temperature_k +
++      dv *
++          surface_pressure_hpa;
++
++  if (result->
++          water_kv_db_per_kg_m2 <
++      0.0) {
++    return -10;
++  }
++
++  /*
++   * P.676-13 equation (38).
++   */
++  result->water_loss_db =
++      result->
++          water_kv_db_per_kg_m2 *
++      integrated_water_vapour_kg_m2 /
++      sin_elevation;
++
++  result->total_loss_db =
++      result->oxygen_loss_db +
++      result->water_loss_db;
++
++  return
++      isfinite(result->total_loss_db)
++          ? 0
++          : -11;
++}
+diff --git a/radio/rfsimulator/haps/haps_gas.h b/radio/rfsimulator/haps/haps_gas.h
+new file mode 100644
+index 0000000..f95e3fb
+--- /dev/null
++++ b/radio/rfsimulator/haps/haps_gas.h
+@@ -0,0 +1,35 @@
++#ifndef HAPS_GAS_H
++#define HAPS_GAS_H
++
++typedef struct {
++  double oxygen_specific_db_per_km;
++  double oxygen_equivalent_height_km;
++
++  double oxygen_loss_db;
++
++  double water_kv_db_per_kg_m2;
++  double water_loss_db;
++
++  double total_loss_db;
++} haps_gas_result_t;
++
++/*
++ * ITU-R P.676-13 Annex 2 instantaneous
++ * gaseous attenuation calculation.
++ *
++ * Current coefficient-table scope:
++ *   1 GHz <= f <= 10 GHz
++ *
++ * Current project carrier:
++ *   3.6192 GHz
++ */
++int haps_gas_compute_p676_13(
++    double carrier_frequency_hz,
++    double elevation_deg,
++    double surface_pressure_hpa,
++    double surface_temperature_k,
++    double surface_water_vapour_density_g_m3,
++    double integrated_water_vapour_kg_m2,
++    haps_gas_result_t *result);
++
++#endif
+diff --git a/radio/rfsimulator/haps/haps_geometry.c b/radio/rfsimulator/haps/haps_geometry.c
+new file mode 100644
+index 0000000..c983a57
+--- /dev/null
++++ b/radio/rfsimulator/haps/haps_geometry.c
+@@ -0,0 +1,134 @@
++#include "haps_geometry.h"
++
++#include <math.h>
++#include <string.h>
++
++#define HAPS_PI 3.14159265358979323846
++#define SPEED_OF_LIGHT_MPS 299792458.0
++
++static double deg_to_rad(double degrees)
++{
++  return degrees * HAPS_PI / 180.0;
++}
++
++static double rad_to_deg(double radians)
++{
++  return radians * 180.0 / HAPS_PI;
++}
++
++void haps_geodetic_to_ecef(
++    double latitude_deg,
++    double longitude_deg,
++    double altitude_m,
++    double ecef_m[3])
++{
++  /*
++   * WGS-84 parametreleri.
++   */
++  const double semi_major_axis_m = 6378137.0;
++  const double flattening = 1.0 / 298.257223563;
++  const double eccentricity_sq =
++      flattening * (2.0 - flattening);
++
++  const double latitude_rad = deg_to_rad(latitude_deg);
++  const double longitude_rad = deg_to_rad(longitude_deg);
++
++  const double sin_lat = sin(latitude_rad);
++  const double cos_lat = cos(latitude_rad);
++
++  const double sin_lon = sin(longitude_rad);
++  const double cos_lon = cos(longitude_rad);
++
++  const double prime_vertical_radius =
++      semi_major_axis_m /
++      sqrt(1.0 - eccentricity_sq * sin_lat * sin_lat);
++
++  ecef_m[0] =
++      (prime_vertical_radius + altitude_m) *
++      cos_lat * cos_lon;
++
++  ecef_m[1] =
++      (prime_vertical_radius + altitude_m) *
++      cos_lat * sin_lon;
++
++  ecef_m[2] =
++      (prime_vertical_radius *
++       (1.0 - eccentricity_sq) +
++       altitude_m) *
++      sin_lat;
++}
++
++int haps_compute_geometry(
++    const haps_config_t *cfg,
++    haps_geometry_result_t *result)
++{
++  if (cfg == NULL || result == NULL)
++    return -1;
++
++  memset(result, 0, sizeof(*result));
++
++  haps_geodetic_to_ecef(
++      cfg->haps_latitude_deg,
++      cfg->haps_longitude_deg,
++      cfg->haps_altitude_m,
++      result->haps_ecef_m);
++
++  haps_geodetic_to_ecef(
++      cfg->ue_latitude_deg,
++      cfg->ue_longitude_deg,
++      cfg->ue_altitude_m,
++      result->ue_ecef_m);
++
++  const double dx =
++      result->haps_ecef_m[0] - result->ue_ecef_m[0];
++
++  const double dy =
++      result->haps_ecef_m[1] - result->ue_ecef_m[1];
++
++  const double dz =
++      result->haps_ecef_m[2] - result->ue_ecef_m[2];
++
++  result->slant_range_m =
++      sqrt(dx * dx + dy * dy + dz * dz);
++
++  if (result->slant_range_m <= 0.0)
++    return -1;
++
++  const double latitude_rad =
++      deg_to_rad(cfg->ue_latitude_deg);
++
++  const double longitude_rad =
++      deg_to_rad(cfg->ue_longitude_deg);
++
++  /*
++   * UE konumundaki yerel Up birim vektörü.
++   */
++  const double up_x =
++      cos(latitude_rad) * cos(longitude_rad);
++
++  const double up_y =
++      cos(latitude_rad) * sin(longitude_rad);
++
++  const double up_z =
++      sin(latitude_rad);
++
++  const double projection_up =
++      dx * up_x + dy * up_y + dz * up_z;
++
++  double sine_elevation =
++      projection_up / result->slant_range_m;
++
++  if (sine_elevation > 1.0)
++    sine_elevation = 1.0;
++
++  if (sine_elevation < -1.0)
++    sine_elevation = -1.0;
++
++  result->elevation_deg =
++      rad_to_deg(asin(sine_elevation));
++
++  result->propagation_delay_s =
++      result->slant_range_m / SPEED_OF_LIGHT_MPS;
++
++  return 0;
++}
+diff --git a/radio/rfsimulator/haps/haps_geometry.h b/radio/rfsimulator/haps/haps_geometry.h
+new file mode 100644
+index 0000000..5c6e550
+--- /dev/null
++++ b/radio/rfsimulator/haps/haps_geometry.h
+@@ -0,0 +1,34 @@
++#ifndef HAPS_GEOMETRY_H
++#define HAPS_GEOMETRY_H
++
++#include "haps_config.h"
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++typedef struct {
++  double haps_ecef_m[3];
++  double ue_ecef_m[3];
++
++  double slant_range_m;
++  double elevation_deg;
++
++  double propagation_delay_s;
++} haps_geometry_result_t;
++
++void haps_geodetic_to_ecef(
++    double latitude_deg,
++    double longitude_deg,
++    double altitude_m,
++    double ecef_m[3]);
++
++int haps_compute_geometry(
++    const haps_config_t *cfg,
++    haps_geometry_result_t *result);
++
++#ifdef __cplusplus
++}
++#endif
++
++#endif
+diff --git a/radio/rfsimulator/haps/haps_propagation.c b/radio/rfsimulator/haps/haps_propagation.c
+new file mode 100644
+index 0000000..aef3d1d
+--- /dev/null
++++ b/radio/rfsimulator/haps/haps_propagation.c
+@@ -0,0 +1,849 @@
++#include "haps_propagation.h"
++
++#include <math.h>
++#include <stdint.h>
++#include <string.h>
++#include "haps_gas.h"
++#include "common/utils/LOG/log.h"
++
++#define HAPS_PI 3.14159265358979323846
++#define SPEED_OF_LIGHT_MPS 299792458.0
++#define HAPS_NUM_REFERENCE_ANGLES 9
++
++/*
++ * 3GPP TR 38.811:
++ * Reference elevation angles are 10, 20, ..., 90 degrees.
++ */
++static const double reference_elevation_deg[
++    HAPS_NUM_REFERENCE_ANGLES] = {
++    10.0,
++    20.0,
++    30.0,
++    40.0,
++    50.0,
++    60.0,
++    70.0,
++    80.0,
++    90.0
++};
++
++typedef struct {
++  /*
++   * LOS probability values in the range [0,1].
++   */
++  double los_probability[HAPS_NUM_REFERENCE_ANGLES];
++
++  /*
++   * Shadow-fading standard deviation in dB.
++   */
++  double sigma_los_db[HAPS_NUM_REFERENCE_ANGLES];
++  double sigma_nlos_db[HAPS_NUM_REFERENCE_ANGLES];
++
++  /*
++   * NLOS clutter loss in dB.
++   * LOS clutter loss is always zero.
++   */
++  double clutter_nlos_db[HAPS_NUM_REFERENCE_ANGLES];
++} haps_large_scale_table_t;
++
++/*
++ * Dense urban, S-band.
++ *
++ * 3GPP TR 38.811:
++ * Tables 6.6.1-1 and 6.6.2-1.
++ */
++static const haps_large_scale_table_t dense_urban_sband = {
++    .los_probability = {
++        0.282,
++        0.331,
++        0.398,
++        0.468,
++        0.537,
++        0.612,
++        0.738,
++        0.820,
++        0.981
++    },
++
++    .sigma_los_db = {
++        3.5,
++        3.4,
++        2.9,
++        3.0,
++        3.1,
++        2.7,
++        2.5,
++        2.3,
++        1.2
++    },
++
++    .sigma_nlos_db = {
++        15.5,
++        13.9,
++        12.4,
++        11.7,
++        10.6,
++        10.5,
++        10.1,
++        9.2,
++        9.2
++    },
++
++    .clutter_nlos_db = {
++        34.3,
++        30.9,
++        29.0,
++        27.7,
++        26.8,
++        26.2,
++        25.8,
++        25.5,
++        25.5
++    }
++};
++
++/*
++ * Urban, S-band.
++ *
++ * 3GPP TR 38.811:
++ * Tables 6.6.1-1 and 6.6.2-2.
++ */
++static const haps_large_scale_table_t urban_sband = {
++    .los_probability = {
++        0.246,
++        0.386,
++        0.493,
++        0.613,
++        0.726,
++        0.805,
++        0.919,
++        0.968,
++        0.992
++    },
++
++    .sigma_los_db = {
++        4.0,
++        4.0,
++        4.0,
++        4.0,
++        4.0,
++        4.0,
++        4.0,
++        4.0,
++        4.0
++    },
++
++    .sigma_nlos_db = {
++        6.0,
++        6.0,
++        6.0,
++        6.0,
++        6.0,
++        6.0,
++        6.0,
++        6.0,
++        6.0
++    },
++
++    .clutter_nlos_db = {
++        34.3,
++        30.9,
++        29.0,
++        27.7,
++        26.8,
++        26.2,
++        25.8,
++        25.5,
++        25.5
++    }
++};
++
++/*
++ * Suburban and rural, S-band.
++ *
++ * 3GPP TR 38.811:
++ * Tables 6.6.1-1 and 6.6.2-3.
++ */
++static const haps_large_scale_table_t suburban_rural_sband = {
++    .los_probability = {
++        0.782,
++        0.869,
++        0.919,
++        0.929,
++        0.935,
++        0.940,
++        0.949,
++        0.952,
++        0.998
++    },
++
++    .sigma_los_db = {
++        1.79,
++        1.14,
++        1.14,
++        0.92,
++        1.42,
++        1.56,
++        0.85,
++        0.72,
++        0.72
++    },
++
++    .sigma_nlos_db = {
++        8.93,
++        9.08,
++        8.78,
++        10.25,
++        10.56,
++        10.74,
++        10.17,
++        11.52,
++        11.52
++    },
++
++    .clutter_nlos_db = {
++        19.52,
++        18.17,
++        18.42,
++        18.28,
++        18.63,
++        17.68,
++        16.50,
++        16.30,
++        16.30
++    }
++};
++
++/*
++ * Global rand()/srand() kullanmak yerine kanal context'inden
++ * bağımsız, tekrar üretilebilir basit bir PRNG kullanıyoruz.
++ */
++static uint32_t haps_xorshift32(uint32_t *state)
++{
++  uint32_t x = *state;
++
++  if (x == 0)
++    x = 0x6d2b79f5U;
++
++  x ^= x << 13;
++  x ^= x >> 17;
++  x ^= x << 5;
++
++  *state = x;
++  return x;
++}
++
++/*
++ * Review fix (E9): SplitMix32-style seed finaliser (Murmur3 fmix32 constants).
++ * Any nonzero 32-bit state is a valid xorshift32 state; mixing makes the
++ * first outputs independent of the magnitude of the user seed.
++ */
++static uint32_t haps_seed_mix(uint32_t seed)
++{
++  uint32_t z = seed + 0x9E3779B9U;
++  z = (z ^ (z >> 16)) * 0x85EBCA6BU;
++  z = (z ^ (z >> 13)) * 0xC2B2AE35U;
++  z ^= z >> 16;
++  return z != 0 ? z : 0x6d2b79f5U;
++}
++
++/*
++ * Açık aralıkta uniform rastgele değişken:
++ *
++ * 0 < u < 1
++ */
++static double haps_uniform_open01(uint32_t *state)
++{
++  const uint32_t value = haps_xorshift32(state);
++
++  return ((double)value + 0.5) / 4294967296.0;
++}
++
++/*
++ * Box-Muller dönüşümüyle standart normal değişken:
++ *
++ * z ~ N(0,1)
++ */
++static double haps_standard_normal(uint32_t *state)
++{
++  const double u1 = haps_uniform_open01(state);
++  const double u2 = haps_uniform_open01(state);
++
++  return sqrt(-2.0 * log(u1)) *
++         cos(2.0 * HAPS_PI * u2);
++}
++
++static const haps_large_scale_table_t *
++get_large_scale_table(haps_scenario_t scenario)
++{
++  switch (scenario) {
++    case HAPS_SCENARIO_DENSE_URBAN:
++      return &dense_urban_sband;
++
++    case HAPS_SCENARIO_URBAN:
++      return &urban_sband;
++
++    case HAPS_SCENARIO_SUBURBAN:
++    case HAPS_SCENARIO_RURAL:
++    default:
++      return &suburban_rural_sband;
++  }
++}
++
++/*
++ * 3GPP TR 38.811, ölçülen elevation değerine en yakın
++ * 10 derecelik referans açının kullanılmasını ister.
++ *
++ * Örnek:
++ *   44.87 derece -> 40 derece
++ *   46.00 derece -> 50 derece
++ */
++static int nearest_reference_angle_index(
++    double elevation_deg)
++{
++  if (elevation_deg <= 10.0)
++    return 0;
++
++  if (elevation_deg >= 90.0)
++    return HAPS_NUM_REFERENCE_ANGLES - 1;
++
++  int index =
++      (int)floor((elevation_deg + 5.0) / 10.0) - 1;
++
++  if (index < 0)
++    index = 0;
++
++  if (index >= HAPS_NUM_REFERENCE_ANGLES)
++    index = HAPS_NUM_REFERENCE_ANGLES - 1;
++
++  return index;
++}
++
++typedef struct {
++  double r;
++  double s;
++  double t;
++  double u;
++  double v;
++  double w;
++  double x;
++  double y;
++  double z;
++} haps_bel_coefficients_t;
++
++/*
++ * ITU-R P.2109-2, Table 1.
++ */
++static const haps_bel_coefficients_t
++    bel_traditional_coefficients = {
++        .r = 12.64,
++        .s = 3.72,
++        .t = 0.96,
++        .u = 9.6,
++        .v = 2.0,
++        .w = 9.1,
++        .x = -3.0,
++        .y = 4.5,
++        .z = -2.0
++};
++
++static const haps_bel_coefficients_t
++    bel_thermally_efficient_coefficients = {
++        .r = 28.19,
++        .s = -3.00,
++        .t = 8.48,
++        .u = 13.5,
++        .v = 3.8,
++        .w = 27.8,
++        .x = -2.9,
++        .y = 9.4,
++        .z = -2.1
++};
++
++/*
++ * Standart normal dağılımın ters CDF yaklaşımı.
++ *
++ * Girdi:
++ *   0 < probability < 1
++ */
++static double haps_inverse_normal_cdf(
++    double probability)
++{
++  static const double a[] = {
++      -3.969683028665376e+01,
++       2.209460984245205e+02,
++      -2.759285104469687e+02,
++       1.383577518672690e+02,
++      -3.066479806614716e+01,
++       2.506628277459239e+00
++  };
++
++  static const double b[] = {
++      -5.447609879822406e+01,
++       1.615858368580409e+02,
++      -1.556989798598866e+02,
++       6.680131188771972e+01,
++      -1.328068155288572e+01
++  };
++
++  static const double c[] = {
++      -7.784894002430293e-03,
++      -3.223964580411365e-01,
++      -2.400758277161838e+00,
++      -2.549732539343734e+00,
++       4.374664141464968e+00,
++       2.938163982698783e+00
++  };
++
++  static const double d[] = {
++       7.784695709041462e-03,
++       3.224671290700398e-01,
++       2.445134137142996e+00,
++       3.754408661907416e+00
++  };
++
++  const double lower_limit = 0.02425;
++  const double upper_limit = 1.0 - lower_limit;
++
++  if (probability <= 0.0 ||
++      probability >= 1.0) {
++    return NAN;
++  }
++
++  if (probability < lower_limit) {
++    const double q =
++        sqrt(-2.0 * log(probability));
++
++    return
++        (((((c[0] * q + c[1]) * q + c[2]) * q +
++            c[3]) * q + c[4]) * q + c[5]) /
++        ((((d[0] * q + d[1]) * q + d[2]) * q +
++           d[3]) * q + 1.0);
++  }
++
++  if (probability > upper_limit) {
++    const double q =
++        sqrt(-2.0 * log(1.0 - probability));
++
++    return -
++        (((((c[0] * q + c[1]) * q + c[2]) * q +
++            c[3]) * q + c[4]) * q + c[5]) /
++        ((((d[0] * q + d[1]) * q + d[2]) * q +
++           d[3]) * q + 1.0);
++  }
++
++  const double q = probability - 0.5;
++  const double r = q * q;
++
++  return
++      (((((a[0] * r + a[1]) * r + a[2]) * r +
++          a[3]) * r + a[4]) * r + a[5]) * q /
++      (((((b[0] * r + b[1]) * r + b[2]) * r +
++          b[3]) * r + b[4]) * r + 1.0);
++}
++
++static int haps_compute_building_entry_loss_db(
++    const haps_config_t *cfg,
++    double elevation_deg,
++    double *building_entry_loss_db)
++{
++  if (cfg == NULL ||
++      building_entry_loss_db == NULL) {
++    return -1;
++  }
++
++  *building_entry_loss_db = 0.0;
++
++  /*
++   * Outdoor terminal için bina giriş kaybı yoktur.
++   */
++  if (cfg->terminal_type ==
++      HAPS_TERMINAL_OUTDOOR) {
++    return 0;
++  }
++
++  const double probability =
++      cfg->bel_percentile;
++
++  if (probability <= 0.0 ||
++      probability >= 1.0) {
++
++    LOG_E(
++        HW,
++        "HAPS BEL: bel_percentile must satisfy "
++        "0 < P < 1, received %.6f\n",
++        probability);
++
++    return -2;
++  }
++
++  if (probability < 0.01 ||
++      probability > 0.99) {
++
++    LOG_W(
++        HW,
++        "HAPS BEL: P=%.4f is outside the "
++        "empirically validated 0.01-0.99 range\n",
++        probability);
++  }
++
++  const double frequency_ghz =
++      cfg->carrier_frequency_hz / 1.0e9;
++
++  if (frequency_ghz <= 0.0)
++    return -3;
++
++  const haps_bel_coefficients_t *coefficients =
++      cfg->terminal_type ==
++              HAPS_TERMINAL_INDOOR_THERMALLY_EFFICIENT
++          ? &bel_thermally_efficient_coefficients
++          : &bel_traditional_coefficients;
++
++  const double log_frequency =
++      log10(frequency_ghz);
++
++  /*
++   * P.2109 equations 5-10.
++   */
++  const double horizontal_median_loss =
++      coefficients->r +
++      coefficients->s * log_frequency +
++      coefficients->t *
++          log_frequency * log_frequency;
++
++  const double elevation_correction =
++      0.212 * fabs(elevation_deg);
++
++  const double mu_1 =
++      horizontal_median_loss +
++      elevation_correction;
++
++  const double mu_2 =
++      coefficients->w +
++      coefficients->x * log_frequency;
++
++  const double sigma_1 =
++      coefficients->u +
++      coefficients->v * log_frequency;
++
++  const double sigma_2 =
++      coefficients->y +
++      coefficients->z * log_frequency;
++
++  const double normal_quantile =
++      haps_inverse_normal_cdf(probability);
++
++  if (!isfinite(normal_quantile))
++    return -4;
++
++  const double component_a =
++      normal_quantile * sigma_1 + mu_1;
++
++  const double component_b =
++      normal_quantile * sigma_2 + mu_2;
++
++  const double component_c = -3.0;
++
++  *building_entry_loss_db =
++      10.0 *
++      log10(
++          pow(10.0, component_a / 10.0) +
++          pow(10.0, component_b / 10.0) +
++          pow(10.0, component_c / 10.0));
++
++  LOG_I(
++      HW,
++      "HAPS BEL: type=%d P=%.3f "
++      "frequency=%.4f GHz elevation=%.2f deg "
++      "quantile=%.4f BEL=%.2f dB\n",
++      (int)cfg->terminal_type,
++      probability,
++      frequency_ghz,
++      elevation_deg,
++      normal_quantile,
++      *building_entry_loss_db);
++
++  return 0;
++}
++
++double haps_fspl_db(
++    double distance_m,
++    double frequency_hz)
++{
++  if (distance_m <= 0.0 || frequency_hz <= 0.0)
++    return 0.0;
++
++  return 20.0 *
++         log10(
++             4.0 *
++             HAPS_PI *
++             distance_m *
++             frequency_hz /
++             SPEED_OF_LIGHT_MPS);
++}
++
++int haps_compute_propagation(
++    const haps_config_t *cfg,
++    const haps_geometry_result_t *geometry,
++    haps_propagation_result_t *result)
++{
++  if (cfg == NULL || geometry == NULL || result == NULL)
++    return -1;
++
++  memset(result, 0, sizeof(*result));
++
++  /*
++   * Bu aşamada henüz uygulanmamış bileşenler.
++   */
++  if ( cfg->enable_cloud ||
++      cfg->enable_scintillation) {
++
++    LOG_E(
++        HW,
++        "HAPS propagation: cloud and scintillation "
++        "are not implemented yet\n");
++
++    return -2;
++  }
++
++  const haps_large_scale_table_t *table =
++      get_large_scale_table(cfg->scenario);
++
++  const int angle_index =
++      nearest_reference_angle_index(
++          geometry->elevation_deg);
++
++  result->reference_elevation_deg =
++      reference_elevation_deg[angle_index];
++
++  result->los_probability =
++      table->los_probability[angle_index];
++
++  /*
++   * Forced modlarda rastgele LOS çekilişi yapılmaz.
++   */
++  result->los_uniform_draw = -1.0;
++
++  /*
++   * Seed aynı olduğunda sonuç yeniden üretilebilir.
++   */
++  /*
++   * Review fix (E9): xorshift32 must not be seeded with the raw user seed.
++   * For seeds below 2^13 the first output is ~ seed * 270369, i.e. the LoS
++   * draw is ~ seed * 6.3e-5 and every link is LoS. Mix the seed with a
++   * SplitMix32-style finaliser and discard the first outputs.
++   */
++  uint32_t random_state = haps_seed_mix(cfg->random_seed != 0 ? cfg->random_seed : 1U);
++  for (int warm = 0; warm < 8; warm++)
++    (void)haps_xorshift32(&random_state);
++
++  switch (cfg->los_mode) {
++    case HAPS_LOS_FORCED:
++      result->is_los = true;
++      break;
++
++    case HAPS_NLOS_FORCED:
++      result->is_los = false;
++      break;
++
++    case HAPS_LOS_PROBABILISTIC:
++      result->los_uniform_draw =
++          haps_uniform_open01(&random_state);
++
++      result->is_los =
++          result->los_uniform_draw <
++          result->los_probability;
++      break;
++
++    default:
++      result->is_los = true;
++      break;
++  }
++
++  /*
++   * Gerçek frekans ve slant mesafe üzerinden FSPL.
++   */
++  if (cfg->enable_fspl) {
++    result->fspl_db =
++        haps_fspl_db(
++            geometry->slant_range_m,
++            cfg->carrier_frequency_hz);
++  }
++
++  /*
++   * TR 38.811'e göre LOS durumunda clutter loss 0 dB.
++   */
++  if (cfg->enable_clutter && !result->is_los) {
++    result->clutter_loss_db =
++        table->clutter_nlos_db[angle_index];
++  }
++
++  /*
++   * LOS/NLOS durumuna göre shadow-fading sigma seçimi.
++   */
++  if (result->is_los) {
++    result->shadow_sigma_db =
++        table->sigma_los_db[angle_index];
++  } else {
++    result->shadow_sigma_db =
++        table->sigma_nlos_db[angle_index];
++  }
++
++  /*
++   * Shadow fading:
++   *
++   * SF ~ N(0, sigma_SF^2)
++   *
++   * Bu ilk sürümde kanal oluşturulurken bir kez çekilir
++   * ve bağlantı boyunca sabit kalır.
++   */
++  if (cfg->enable_shadow_fading) {
++    const double standard_normal =
++        haps_standard_normal(&random_state);
++
++    result->shadow_fading_db =
++        result->shadow_sigma_db *
++        standard_normal;
++  }
++
++  if (cfg->enable_gas) {
++  haps_gas_result_t gas_result;
++
++  const int gas_rc =
++      haps_gas_compute_p676_13(
++          cfg->carrier_frequency_hz,
++          geometry->elevation_deg,
++          cfg->gas_surface_pressure_hpa,
++          cfg->gas_surface_temperature_k,
++          cfg->
++              gas_surface_water_vapour_density_g_m3,
++          cfg->
++              gas_integrated_water_vapour_kg_m2,
++          &gas_result);
++
++  if (gas_rc != 0) {
++    LOG_E(
++        HW,
++        "HAPS GAS: P.676-13 calculation "
++        "failed, rc=%d, f=%.6f GHz, "
++        "elevation=%.2f deg\n",
++        gas_rc,
++        cfg->carrier_frequency_hz /
++            1.0e9,
++        geometry->elevation_deg);
++
++    return -4;
++  }
++
++  result->oxygen_gas_loss_db =
++      gas_result.oxygen_loss_db;
++
++  result->water_vapour_gas_loss_db =
++      gas_result.water_loss_db;
++
++  result->gas_loss_db =
++      gas_result.total_loss_db;
++
++  LOG_I(
++      HW,
++      "HAPS GAS P676-13: "
++      "f=%.6f GHz elevation=%.2f deg "
++      "P=%.2f hPa T=%.2f K "
++      "rho=%.3f g/m3 V=%.3f kg/m2 "
++      "gammaO2=%.8f dB/km "
++      "hO2=%.6f km "
++      "O2=%.6f dB "
++      "H2O=%.6f dB "
++      "GAS=%.6f dB\n",
++      cfg->carrier_frequency_hz /
++          1.0e9,
++      geometry->elevation_deg,
++      cfg->gas_surface_pressure_hpa,
++      cfg->gas_surface_temperature_k,
++      cfg->
++          gas_surface_water_vapour_density_g_m3,
++      cfg->
++          gas_integrated_water_vapour_kg_m2,
++      gas_result.
++          oxygen_specific_db_per_km,
++      gas_result.
++          oxygen_equivalent_height_km,
++      gas_result.oxygen_loss_db,
++      gas_result.water_loss_db,
++      gas_result.total_loss_db);
++}
++
++  
++
++  if (cfg->enable_building_entry_loss) {
++  const int bel_result =
++      haps_compute_building_entry_loss_db(
++          cfg,
++          geometry->elevation_deg,
++          &result->building_entry_loss_db);
++
++  if (bel_result != 0) {
++    LOG_E(
++        HW,
++        "HAPS building-entry-loss "
++        "calculation failed: %d\n",
++        bel_result);
++
++    return -3;
++  }
++}
++
++    result->total_loss_db =
++    result->fspl_db +
++    result->clutter_loss_db +
++    result->shadow_fading_db +
++    result->building_entry_loss_db +
++    result->gas_loss_db +
++    result->rain_loss_db +
++    result->cloud_loss_db +
++    result->scintillation_loss_db;
++
++/*
++ * Normalized RFsimulator IQ kalibrasyonu.
++ */
++result->applied_loss_db =
++    result->total_loss_db -
++    cfg->link_budget_offset_db;
++
++if (result->applied_loss_db < 0.0)
++  result->applied_loss_db = 0.0;
++
++/*
++ * Güç kaybını kompleks IQ genlik katsayısına çevir.
++ */
++result->linear_amplitude_gain =
++    pow(
++        10.0,
++        -result->applied_loss_db / 20.0);
++
++LOG_I(
++    HW,
++    "HAPS LARGE SCALE: "
++    "FSPL=%.6f dB "
++    "CL=%.6f dB "
++    "SF=%.6f dB "
++    "BEL=%.6f dB "
++    "GAS=%.6f dB "
++    "total=%.6f dB "
++    "offset=%.6f dB "
++    "applied=%.6f dB "
++    "gain=%.9f\n",
++    result->fspl_db,
++    result->clutter_loss_db,
++    result->shadow_fading_db,
++    result->building_entry_loss_db,
++    result->gas_loss_db,
++    result->total_loss_db,
++    cfg->link_budget_offset_db,
++    result->applied_loss_db,
++    result->linear_amplitude_gain);
++
++return 0;
++}    
++
++      
+diff --git a/radio/rfsimulator/haps/haps_propagation.h b/radio/rfsimulator/haps/haps_propagation.h
+new file mode 100644
+index 0000000..4981ab8
+--- /dev/null
++++ b/radio/rfsimulator/haps/haps_propagation.h
+@@ -0,0 +1,100 @@
++#ifndef HAPS_PROPAGATION_H
++#define HAPS_PROPAGATION_H
++
++#include <stdbool.h>
++
++#include "haps_config.h"
++#include "haps_geometry.h"
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++typedef struct {
++  /*
++   * 3GPP büyük ölçekli kanal durumu.
++   */
++  bool is_los;
++
++  /*
++   * Gerçek elevation yerine kullanılan en yakın
++   * 3GPP referans açısı: 10, 20, ..., 90 derece.
++   */
++  double reference_elevation_deg;
++
++  /*
++   * 3GPP TR 38.811 LOS olasılığı.
++   */
++  double los_probability;
++
++  /*
++   * Probabilistic modda yapılan rastgele çekiliş.
++   * Forced modlarda -1.0 değerindedir.
++   */
++  double los_uniform_draw;
++
++  /*
++   * Serbest uzay kaybı.
++   */
++  double fspl_db;
++
++  /*
++   * 3GPP clutter ve shadow fading bileşenleri.
++   */
++  double clutter_loss_db;
++  double shadow_sigma_db;
++  double shadow_fading_db;
++
++  /*
++   * Sonraki aşamalarda eklenecek bileşenler.
++   */
++  double building_entry_loss_db;
++ 
++  double oxygen_gas_loss_db;
++  double water_vapour_gas_loss_db;
++  double gas_loss_db;
++
++   double rain_k;
++  double rain_alpha;
++
++  double rain_specific_attenuation_db_per_km;
++  double rain_path_km;
++  
++
++  double rain_loss_db;
++  double cloud_loss_db;
++  double scintillation_loss_db;
++
++  /*
++   * Fiziksel toplam kanal kaybı.
++   */
++  double total_loss_db;
++
++  /*
++   * OAI normalize IQ alanında uygulanan net kayıp:
++   *
++   * applied_loss_db =
++   *     total_loss_db - link_budget_offset_db
++   */
++  double applied_loss_db;
++
++  /*
++   * IQ örneklerine uygulanan genlik katsayısı.
++   */
++  double linear_amplitude_gain;
++} haps_propagation_result_t;
++
++double haps_fspl_db(
++    double distance_m,
++    double frequency_hz);
++
++int haps_compute_propagation(
++    const haps_config_t *cfg,
++    const haps_geometry_result_t *geometry,
++    haps_propagation_result_t *result);
++
++#ifdef __cplusplus
++}
++#endif
++
++#endif
+diff --git a/radio/rfsimulator/haps/haps_rain.c b/radio/rfsimulator/haps/haps_rain.c
+new file mode 100644
+index 0000000..bd9621f
+--- /dev/null
++++ b/radio/rfsimulator/haps/haps_rain.c
+@@ -0,0 +1,374 @@
++#include "haps_rain.h"
++
++#include <math.h>
++#include <stddef.h>
++#include <string.h>
++
++/*
++ * ITU-R P.838-3
++ *
++ * Specific attenuation model for rain for use
++ * in prediction methods.
++ *
++ * gamma_R = k * R^alpha
++ *
++ * The numerical coefficients below are taken from:
++ *
++ * Table 1: k_H
++ * Table 2: k_V
++ * Table 3: alpha_H
++ * Table 4: alpha_V
++ */
++
++#define HAPS_RAIN_PI 3.14159265358979323846
++
++typedef struct {
++  double a;
++  double b;
++  double c;
++} haps_p838_gaussian_term_t;
++
++/*
++ * ITU-R P.838-3 Table 1:
++ * coefficients for log10(k_H).
++ */
++static const haps_p838_gaussian_term_t p838_kh_terms[] = {
++    {-5.33980, -0.10008, 1.13098},
++    {-0.35351,  1.26970, 0.45400},
++    {-0.23789,  0.86036, 0.15354},
++    {-0.94158,  0.64552, 0.16817}
++};
++
++static const double p838_kh_m = -0.18961;
++static const double p838_kh_c =  0.71147;
++
++/*
++ * ITU-R P.838-3 Table 2:
++ * coefficients for log10(k_V).
++ */
++static const haps_p838_gaussian_term_t p838_kv_terms[] = {
++    {-3.80595,  0.56934, 0.81061},
++    {-3.44965, -0.22911, 0.51059},
++    {-0.39902,  0.73042, 0.11899},
++    { 0.50167,  1.07319, 0.27195}
++};
++
++static const double p838_kv_m = -0.16398;
++static const double p838_kv_c =  0.63297;
++
++/*
++ * ITU-R P.838-3 Table 3:
++ * coefficients for alpha_H.
++ */
++static const haps_p838_gaussian_term_t p838_alphah_terms[] = {
++    {-0.14318,  1.82442, -0.55187},
++    { 0.29591,  0.77564,  0.19822},
++    { 0.32177,  0.63773,  0.13164},
++    {-5.37610, -0.96230,  1.47828},
++    {16.17210, -3.29980,  3.43990}
++};
++
++static const double p838_alphah_m =  0.67849;
++static const double p838_alphah_c = -1.95537;
++
++/*
++ * ITU-R P.838-3 Table 4:
++ * coefficients for alpha_V.
++ */
++static const haps_p838_gaussian_term_t p838_alphav_terms[] = {
++    { -0.07771, 2.33840, -0.76284},
++    {  0.56727, 0.95545,  0.54039},
++    { -0.20238, 1.14520,  0.26809},
++    {-48.29910, 0.791669, 0.116226},
++    { 48.58330, 0.791459, 0.116479}
++};
++
++static const double p838_alphav_m = -0.053739;
++static const double p838_alphav_c =  0.83433;
++
++static double degrees_to_radians(
++    const double angle_deg)
++{
++  return angle_deg * HAPS_RAIN_PI / 180.0;
++}
++
++/*
++ * Evaluate the Gaussian-sum curve-fitting expression
++ * used by ITU-R P.838-3 equations (2) and (3).
++ */
++static double evaluate_p838_curve(
++    const double frequency_ghz,
++    const haps_p838_gaussian_term_t *terms,
++    const size_t number_of_terms,
++    const double linear_slope,
++    const double constant)
++{
++  const double log_frequency =
++      log10(frequency_ghz);
++
++  double value =
++      linear_slope * log_frequency +
++      constant;
++
++  for (size_t index = 0;
++       index < number_of_terms;
++       ++index) {
++
++    const double normalized_difference =
++        (log_frequency - terms[index].b) /
++        terms[index].c;
++
++    value +=
++        terms[index].a *
++        exp(
++            -normalized_difference *
++            normalized_difference);
++  }
++
++  return value;
++}
++
++static int calculate_p838_coefficients(
++    const double frequency_ghz,
++    const double elevation_deg,
++    const double polarization_tilt_deg,
++    haps_rain_result_t *result)
++{
++  if (result == NULL)
++    return -1;
++
++  /*
++   * Equation (2):
++   *
++   * log10(k) =
++   * sum(a_j exp(-((log10(f)-b_j)/c_j)^2))
++   * + m log10(f) + c
++   */
++  const double log10_k_h =
++      evaluate_p838_curve(
++          frequency_ghz,
++          p838_kh_terms,
++          sizeof(p838_kh_terms) /
++              sizeof(p838_kh_terms[0]),
++          p838_kh_m,
++          p838_kh_c);
++
++  const double log10_k_v =
++      evaluate_p838_curve(
++          frequency_ghz,
++          p838_kv_terms,
++          sizeof(p838_kv_terms) /
++              sizeof(p838_kv_terms[0]),
++          p838_kv_m,
++          p838_kv_c);
++
++  result->k_h = pow(10.0, log10_k_h);
++  result->k_v = pow(10.0, log10_k_v);
++
++  /*
++   * Equation (3):
++   *
++   * alpha =
++   * sum(a_j exp(-((log10(f)-b_j)/c_j)^2))
++   * + m log10(f) + c
++   */
++  result->alpha_h =
++      evaluate_p838_curve(
++          frequency_ghz,
++          p838_alphah_terms,
++          sizeof(p838_alphah_terms) /
++              sizeof(p838_alphah_terms[0]),
++          p838_alphah_m,
++          p838_alphah_c);
++
++  result->alpha_v =
++      evaluate_p838_curve(
++          frequency_ghz,
++          p838_alphav_terms,
++          sizeof(p838_alphav_terms) /
++              sizeof(p838_alphav_terms[0]),
++          p838_alphav_m,
++          p838_alphav_c);
++
++  const double elevation_rad =
++      degrees_to_radians(elevation_deg);
++
++  const double polarization_tilt_rad =
++      degrees_to_radians(
++          polarization_tilt_deg);
++
++  /*
++   * Polarization/elevation term used in
++   * ITU-R P.838-3 equations (4) and (5).
++   */
++  const double polarization_geometry_term =
++      cos(elevation_rad) *
++      cos(elevation_rad) *
++      cos(2.0 * polarization_tilt_rad);
++
++  /*
++   * ITU-R P.838-3 equation (4).
++   */
++  result->k =
++      0.5 *
++      (
++          result->k_h +
++          result->k_v +
++          (
++              result->k_h -
++              result->k_v
++          ) *
++          polarization_geometry_term
++      );
++
++  if (!isfinite(result->k) ||
++      result->k <= 0.0) {
++    return -2;
++  }
++
++  /*
++   * ITU-R P.838-3 equation (5).
++   */
++  result->alpha =
++      (
++          result->k_h * result->alpha_h +
++          result->k_v * result->alpha_v +
++          (
++              result->k_h * result->alpha_h -
++              result->k_v * result->alpha_v
++          ) *
++          polarization_geometry_term
++      ) /
++      (2.0 * result->k);
++
++  if (!isfinite(result->alpha))
++    return -3;
++
++  return 0;
++}
++
++int haps_rain_compute(
++    const haps_rain_input_t *input,
++    haps_rain_result_t *result)
++{
++  if (input == NULL ||
++      result == NULL) {
++    return -1;
++  }
++
++  memset(result, 0, sizeof(*result));
++
++  if (!isfinite(input->frequency_ghz) ||
++      input->frequency_ghz < 1.0 ||
++      input->frequency_ghz > 1000.0) {
++    return -2;
++  }
++
++  if (!isfinite(input->elevation_deg) ||
++      input->elevation_deg <= 0.0 ||
++      input->elevation_deg > 90.0) {
++    return -3;
++  }
++
++  if (!isfinite(
++          input->polarization_tilt_deg)) {
++    return -4;
++  }
++
++  if (!isfinite(input->rain_rate_mm_per_h) ||
++      input->rain_rate_mm_per_h < 0.0) {
++    return -5;
++  }
++
++  if (!isfinite(input->rain_height_km) ||
++      !isfinite(input->station_height_km)) {
++    return -6;
++  }
++
++  const int coefficient_result =
++      calculate_p838_coefficients(
++          input->frequency_ghz,
++          input->elevation_deg,
++          input->polarization_tilt_deg,
++          result);
++
++  if (coefficient_result != 0)
++    return -7;
++
++  /*
++   * No rain rate means zero rain attenuation.
++   */
++  if (input->rain_rate_mm_per_h == 0.0) {
++    result->valid = true;
++    return 0;
++  }
++
++  /*
++   * If the station is above the specified rain layer,
++   * the model contains no rain segment.
++   */
++  if (input->rain_height_km <=
++      input->station_height_km) {
++    result->valid = true;
++    return 0;
++  }
++
++  /*
++   * ITU-R P.838-3 equation (1):
++   *
++   * gamma_R = k * R^alpha
++   */
++  result->specific_attenuation_db_per_km =
++      result->k *
++      pow(
++          input->rain_rate_mm_per_h,
++          result->alpha);
++
++  if (!isfinite(
++          result->
++              specific_attenuation_db_per_km) ||
++      result->
++              specific_attenuation_db_per_km <
++          0.0) {
++    return -8;
++  }
++
++  const double elevation_rad =
++      degrees_to_radians(
++          input->elevation_deg);
++
++  const double sine_elevation =
++      sin(elevation_rad);
++
++  if (!isfinite(sine_elevation) ||
++      sine_elevation <= 0.0) {
++    return -9;
++  }
++
++  /*
++   * Controlled uniform-rain-layer geometry.
++   *
++   * This is intentionally kept separate from the
++   * full P.618/P.2041 statistical effective-path
++   * calculation.
++   */
++  result->geometric_rain_path_km =
++      (
++          input->rain_height_km -
++          input->station_height_km
++      ) /
++      sine_elevation;
++
++  result->attenuation_db =
++      result->specific_attenuation_db_per_km *
++      result->geometric_rain_path_km;
++
++  if (!isfinite(result->attenuation_db) ||
++      result->attenuation_db < 0.0) {
++    return -10;
++  }
++
++  result->valid = true;
++
++  return 0;
++}
+diff --git a/radio/rfsimulator/haps/haps_rain.h b/radio/rfsimulator/haps/haps_rain.h
+new file mode 100644
+index 0000000..2b233e5
+--- /dev/null
++++ b/radio/rfsimulator/haps/haps_rain.h
+@@ -0,0 +1,130 @@
++#ifndef HAPS_RAIN_H
++#define HAPS_RAIN_H
++
++#include <stdbool.h>
++
++/*
++ * Rain attenuation calculation modes.
++ *
++ * DISABLED:
++ *   Rain attenuation is not applied.
++ *
++ * FIXED_UNIFORM_LAYER:
++ *   Rain rate and rain height are supplied from the
++ *   HAPS configuration file. The specific attenuation
++ *   is calculated according to ITU-R P.838-3.
++ *
++ * A future ITU_STATISTICAL mode will use:
++ *   ITU-R P.837-8
++ *   ITU-R P.839-4
++ *   ITU-R P.618-14
++ *   ITU-R P.2041-0
++ */
++typedef enum {
++  HAPS_RAIN_DISABLED = 0,
++  HAPS_RAIN_FIXED_UNIFORM_LAYER = 1,
++  HAPS_RAIN_ITU_STATISTICAL = 2
++} haps_rain_mode_t;
++
++/*
++ * Input parameters for ITU-R P.838-3 rain attenuation.
++ */
++typedef struct {
++  /*
++   * Carrier frequency in GHz.
++   * ITU-R P.838-3 validity range: 1–1000 GHz.
++   */
++  double frequency_ghz;
++
++  /*
++   * HAPS-to-UE elevation angle in degrees.
++   */
++  double elevation_deg;
++
++  /*
++   * Polarization tilt angle relative to horizontal.
++   *
++   * 0 degrees:
++   *   horizontal linear polarization
++   *
++   * 90 degrees:
++   *   vertical linear polarization
++   *
++   * 45 degrees:
++   *   circular polarization or polarization-neutral
++   *   controlled test configuration
++   */
++  double polarization_tilt_deg;
++
++  /*
++   * Rain rate in mm/h.
++   */
++  double rain_rate_mm_per_h;
++
++  /*
++   * Upper boundary of the uniform rain layer.
++   */
++  double rain_height_km;
++
++  /*
++   * UE/site altitude above mean sea level.
++   */
++  double station_height_km;
++} haps_rain_input_t;
++
++/*
++ * Output of the ITU-R P.838-3 calculation.
++ */
++typedef struct {
++  bool valid;
++
++  /*
++   * Horizontal and vertical polarization coefficients.
++   */
++  double k_h;
++  double k_v;
++  double alpha_h;
++  double alpha_v;
++
++  /*
++   * Combined coefficients for the selected elevation
++   * and polarization.
++   */
++  double k;
++  double alpha;
++
++  /*
++   * Specific attenuation:
++   *
++   * gamma_R = k * R^alpha
++   */
++  double specific_attenuation_db_per_km;
++
++  /*
++   * Geometrical distance travelled inside the
++   * uniform rain layer.
++   */
++  double geometric_rain_path_km;
++
++  /*
++   * Total attenuation in the fixed uniform rain layer.
++   */
++  double attenuation_db;
++} haps_rain_result_t;
++
++/*
++ * Calculate rain attenuation according to ITU-R P.838-3.
++ *
++ * The current implementation calculates the exact
++ * frequency- and polarization-dependent P.838-3
++ * coefficients and uses a fixed uniform rain layer.
++ *
++ * Return:
++ *   0  success
++ *  <0  invalid input or calculation error
++ */
++int haps_rain_compute(
++    const haps_rain_input_t *input,
++    haps_rain_result_t *result);
++
++#endif
+diff --git a/radio/rfsimulator/haps/haps_scintillation.c b/radio/rfsimulator/haps/haps_scintillation.c
+new file mode 100644
+index 0000000..e69de29
+diff --git a/radio/rfsimulator/haps/haps_scintillation.h b/radio/rfsimulator/haps/haps_scintillation.h
+new file mode 100644
+index 0000000..e69de29
+diff --git a/radio/rfsimulator/haps/test_haps_rain.c b/radio/rfsimulator/haps/test_haps_rain.c
+new file mode 100644
+index 0000000..4c703ff
+--- /dev/null
++++ b/radio/rfsimulator/haps/test_haps_rain.c
+@@ -0,0 +1,63 @@
++#include "haps_rain.h"
++
++#include <stdio.h>
++
++int main(void)
++{
++  haps_rain_input_t input = {
++      .frequency_ghz = 3.6192,
++      .elevation_deg = 44.87,
++      .polarization_tilt_deg = 45.0,
++      .rain_rate_mm_per_h = 25.0,
++      .rain_height_km = 5.0,
++      .station_height_km = 0.0
++  };
++
++  haps_rain_result_t result = {0};
++
++  const int rc =
++      haps_rain_compute(
++          &input,
++          &result);
++
++  if (rc != 0) {
++    fprintf(
++        stderr,
++        "haps_rain_compute failed: %d\n",
++        rc);
++
++    return 1;
++  }
++
++  printf("valid              = %d\n",
++         result.valid);
++
++  printf("k_H                = %.12f\n",
++         result.k_h);
++
++  printf("k_V                = %.12f\n",
++         result.k_v);
++
++  printf("alpha_H            = %.12f\n",
++         result.alpha_h);
++
++  printf("alpha_V            = %.12f\n",
++         result.alpha_v);
++
++  printf("k                  = %.12f\n",
++         result.k);
++
++  printf("alpha              = %.12f\n",
++         result.alpha);
++
++  printf("gamma_R            = %.12f dB/km\n",
++         result.specific_attenuation_db_per_km);
++
++  printf("rain_path          = %.12f km\n",
++         result.geometric_rain_path_km);
++
++  printf("rain_attenuation   = %.12f dB\n",
++         result.attenuation_db);
++
++  return 0;
++}
+diff --git a/radio/rfsimulator/simulator.cpp b/radio/rfsimulator/simulator.cpp
+index 4a381f0..7971faf 100644
+--- a/radio/rfsimulator/simulator.cpp
++++ b/radio/rfsimulator/simulator.cpp
+@@ -35,6 +35,7 @@ extern "C" {
+ #include <common/utils/load_module_shlib.h>
+ #include <openair1/SIMULATION/TOOLS/sim.h>
+ #include "rfsimulator.h"
++#include "haps/haps_channel.h"
+ extern int get_currentchannels_type(const char *buf,
+                                     int debug,
+                                     webdatadef_t *tdata,
+@@ -161,6 +162,7 @@ typedef struct buffer_s {
+   char *transferPtr;
+   uint64_t remainToTransfer;
+   channel_desc_t *channel_model;
++  haps_channel_ctx_t *haps_channel;
+   rfsim_packet_t *packet_ptr;
+   size_t payload_sz;
+   size_t remainToTransferBeam;
+@@ -359,6 +361,29 @@ static buffer_t *allocCirBuf(rfsimulator_state_t *bridge, int sock)
+     set_channeldesc_owner(ptr->channel_model, RFSIMU_MODULEID);
+     set_channeldesc_direction(ptr->channel_model, bridge->role == SIMU_ROLE_SERVER);
+     random_channel(ptr->channel_model, false);
++    if (ptr->channel_model->modelid == HAPS_3GPP_ITU) {
++      haps_config_t haps_cfg = {};
++      AssertFatal(haps_load_config(modelname, &haps_cfg) == 0,
++                  "HAPS config could not be loaded for model %s\n", modelname);
++      ptr->haps_channel = haps_channel_create(&haps_cfg,
++                                              bridge->tx_num_channels,
++                                              bridge->rx_num_channels,
++                                              bridge->role == SIMU_ROLE_SERVER,
++                                              bridge->sample_rate,
++                                              bridge->rx_freq);
++      AssertFatal(ptr->haps_channel != nullptr,
++                  "HAPS channel context could not be created for model %s\n", modelname);
++      haps_delay_info_t delay_info = {};
++      AssertFatal(haps_channel_get_delay_info(ptr->haps_channel, &delay_info) == 0,
++                  "HAPS delay info unavailable for model %s\n", modelname);
++      ptr->channel_model->channel_offset = delay_info.applied_integer_samples;
++      LOG_I(HW,
++            "HAPS DELAY INSTALLED: model=%s enabled=%d channel_offset=%llu samples "
++            "one_way_delay=%.6f us applied_delay=%.6f us\n",
++            ptr->channel_model->model_name != nullptr ? ptr->channel_model->model_name : "unknown",
++            delay_info.enabled, (unsigned long long)ptr->channel_model->channel_offset,
++            delay_info.one_way_delay_s * 1.0e6, delay_info.applied_delay_s * 1.0e6);
++    }
+     LOG_I(HW, "Random channel %s in rfsimulator activated\n", modelname);
+   }
+   return ptr;
+@@ -374,6 +399,10 @@ static void removeCirBuf(rfsimulator_state_t *bridge, buffer_t *buf)
+   // a lot of mem leaks
+   // free(bridge->buf[sock].channel_model);
+   clear_old_packets(buf->received_packets, INT64_MAX);
++  if (buf->haps_channel != nullptr) {
++    haps_channel_destroy(buf->haps_channel);
++    buf->haps_channel = nullptr;
++  }
+   free(buf->packet_ptr);
+   *buf = buffer_t{};
+   buf->conn_sock = -1;
+@@ -1234,15 +1263,34 @@ static void rfsimulator_read_internal(rfsimulator_state_t *t,
+           input[aatx] = ant_buffers[aatx].data();
+         }
+ 
+-        for (int aarx = 0; aarx < nbAnt; aarx++) {
+-          combine_received_beams(t,
+-                                 ptr->received_packets,
+-                                 timestamp - channel_offset - (channel_length - 1),
+-                                 nsamps + channel_length - 1,
+-                                 rx_beams[aarx],
+-                                 input);
+-
+-          rxAddInput(input, temp_array[aarx], aarx, ptr->channel_model, nsamps);
++        if (ptr->channel_model->modelid == HAPS_3GPP_ITU) {
++          // Port of the author's integration: current E8/E9/SA validation is SISO.
++          AssertFatal(nbAnt == 1 && ptr->nbAnt == 1,
++                      "Author HAPS RFsim validation supports one Tx/Rx antenna\n");
++          AssertFatal(ptr->haps_channel != nullptr,
++                      "HAPS channel context is NULL for %s\n", ptr->channel_model->model_name);
++          const uint64_t channel_tail = channel_length > 0 ? channel_length - 1 : 0;
++          const uint64_t required_history = channel_offset + channel_tail;
++          if (timestamp >= required_history) {
++            combine_received_beams(t, ptr->received_packets, timestamp - required_history,
++                                   nsamps + channel_tail, rx_beams[0], input);
++          } else {
++            LOG_D(HW, "HAPS DELAY WAIT: timestamp=%lu required_history=%lu channel_offset=%lu\n",
++                  (uint64_t)timestamp, required_history, channel_offset);
++          }
++          cf_t *haps_output[1] = {temp_array[0]};
++          const int haps_result = haps_channel_process(ptr->haps_channel, input, 1,
++                                                     haps_output, 1, nsamps, timestamp);
++          AssertFatal(haps_result == 0, "HAPS channel processing failed for %s\n",
++                      ptr->channel_model->model_name);
++        } else {
++          // Keep upstream per-receiver beam selection for all other channel models.
++          for (int aarx = 0; aarx < nbAnt; aarx++) {
++            combine_received_beams(t, ptr->received_packets,
++                                   timestamp - channel_offset - (channel_length - 1),
++                                   nsamps + channel_length - 1, rx_beams[aarx], input);
++            rxAddInput(input, temp_array[aarx], aarx, ptr->channel_model, nsamps);
++          }
+         }
+       } else {
+         // Apply propagation delay

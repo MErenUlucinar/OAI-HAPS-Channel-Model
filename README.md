@@ -14,6 +14,7 @@ WGS-84-based HAPS-to-UE geometry with large-scale propagation effects based on
 
 - [User Guide](docs/USER_GUIDE.md)
 - [OAI Integration Guide](integration/README.md)
+- [Author RFsim integration patch (OAI 9313cbe)](integration/patches/author_rfsim_9313cbe.patch)
 - [Source Module Guide](src/README.md)
 - [Runnable configuration profiles (OAI 9313cbe)](examples/README.md)
 - [Configuration review fixes C1--C7](docs/CONFIGURATION_FIXES.md)
@@ -141,20 +142,20 @@ G_{\mathrm{IQ}} = 10^{-L_{\mathrm{applied}}/20}
 
 ## Basic Usage
 
-The current model is integrated into the OAI RFsimulator source tree. A basic
-setup consists of the following steps:
+The published [author integration](integration/README.md) applies to OAI commit
+`9313cbea82bc3c6b8ff695dd808a0cde5f431724`. Its self-contained patch includes
+the tested HAPS source snapshot, `simulator.cpp` receive-path integration,
+model registration, build changes, and the CFRA/SIB1 access fixes.
 
-1. Add the HAPS source and header files to the RFsimulator source tree.
-2. Register the `HAPS_3GPP_ITU` channel type.
-3. Add the HAPS sources to the OAI build configuration.
-4. Connect HAPS channel processing to `simulator.cpp`.
-5. Copy and adapt the example
-   [`channelmod_haps_3gpp_itu.conf`](examples/channelmod_haps_3gpp_itu.conf).
-6. Build and run the RFsimulator, gNB, and UE.
+Follow the integration guide to create a separate OAI worktree, apply the
+patch and verify its source checksums. Then use the matched
+[configuration profiles](examples/README.md) for the selected elevation and
+experiment mode. The patch already installs its HAPS sources.
 
 For configuration, log interpretation, calculations, verification, and basic
-troubleshooting, see the [User Guide](docs/USER_GUIDE.md). Exact build and run
-commands must be published together with the tested OAI revision.
+troubleshooting, see the [User Guide](docs/USER_GUIDE.md). The integration guide
+records the pinned OAI revision, application/build instructions and validation
+scope.
 
 ## Configuration
 

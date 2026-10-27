@@ -1,184 +1,140 @@
-# OAI Integration Guide
+# Author integration for OAI RFsimulator
 
-This document describes where the HAPS channel model connects to the
-OpenAirInterface (OAI) RFsimulator source tree.
+The published, self-contained [author integration patch](patches/author_rfsim_9313cbe.patch)
+includes the `simulator.cpp` connection and the HAPS source snapshot used in
+our E8/E9/SA experiments. It is pinned to this exact OAI revision:
 
-> The integration points below describe the current `v0.1.0` prototype. Exact
-> line numbers and patch contents depend on the selected OAI commit or tag.
-
-## Tested configuration compatibility
-
-The configuration examples target OAI `develop` commit
-`9313cbea82bc3c6b8ff695dd808a0cde5f431724`. See the
-[profile instructions](../examples/README.md). They use `do_SRS = "none"`, a
-list-type `rfsimulator` section and `min_rxtxtime = 6`.
-
-The OAI integration also needs the CFRA common-occasion assignment and the gNB
-SIB1 NTN-access condition for band 78 whenever `ntn_Config_r17` is configured.
-Changing configuration syntax alone does not implement these source fixes.
-The author's pinned E8/E9/SA build contains them. The existing source and
-integration-patch publication is a separate change; this configuration update
-does not replace a complete OAI integration patch.
-
-## 1. Integration Principle
-
-The repository separates the HAPS implementation from the OAI core:
-
-- `src/` contains the HAPS-owned source and header files.
-- `integration/` documents the changes required in existing OAI files.
-- `examples/` contains example RFsimulator and HAPS configurations.
-- OAI core files are not copied into this repository as independent source
-  files.
-
-This separation makes it clear which code belongs to the HAPS model and which
-changes only connect the model to OAI.
-
-## 2. HAPS Source Destination
-
-Copy the HAPS modules from this repository into the compatible OAI source tree:
-
-```text
-oai-haps-channel-model/src/haps_*.c
-oai-haps-channel-model/src/haps_*.h
-                    ↓
-openairinterface5g/radio/rfsimulator/haps/
-```
-
-Example:
-
-```bash
-mkdir -p ~/openairinterface5g/radio/rfsimulator/haps
-cp -v src/haps_*.c ~/openairinterface5g/radio/rfsimulator/haps/
-cp -v src/haps_*.h ~/openairinterface5g/radio/rfsimulator/haps/
-```
-
-Run these commands from the root of the `oai-haps-channel-model` repository.
-
-## 3. OAI Integration Points
-
-| OAI file or area | Required HAPS connection |
+| Item | Value |
 |---|---|
-| `openair1/SIMULATION/TOOLS/sim.h` | Register the `HAPS_3GPP_ITU` channel type and the required channel state connection |
-| `openair1/SIMULATION/TOOLS/random_channel.c` | Create the HAPS channel descriptor through OAI's channel-model creation path |
-| `radio/rfsimulator/simulator.cpp` | Create and destroy the HAPS context, apply IQ processing, and transfer integer delay to `channel_offset` |
-| RFsimulator CMake target | Compile the HAPS `.c` modules with RFsimulator |
-| Channel configuration | Select `HAPS_3GPP_ITU` and associate UL/DL `model_name` values with `hapsmod` records |
+| OAI repository | [duranta-project/openairinterface5g](https://github.com/duranta-project/openairinterface5g) |
+| OAI base commit | `9313cbea82bc3c6b8ff695dd808a0cde5f431724` |
+| Original author checkout | `699a5453a0713b0978944e583357a7b1b6056591` |
+| Patch | `patches/author_rfsim_9313cbe.patch` |
+| Patch SHA-256 | `c4530b27af37a1f9b7c11f6caceb12c50f4831ad496bcb6861a4bee1e28b3515` |
+| Recorded output files | 26; see [manifest.json](patches/manifest.json) |
 
-Depending on the OAI revision, the channel name mapping and build target may be
-located in additional files. Confirm each location against the tested OAI
-commit before producing a patch.
+The `699a5453` value identifies the source checkout from which the author's
+integration was exported. Apply the published patch to **`9313cbe`**.
+The file is the author's ported integration, not the review-side full-tree
+patch. Its bytes and recorded source hashes are preserved from the tested
+port package.
 
-## 4. Recommended Integration Order
+## Apply to a separate worktree
 
-### Step 1 — Copy the HAPS modules
-
-Place all `haps_*.c` and `haps_*.h` files under:
-
-```text
-radio/rfsimulator/haps/
-```
-
-### Step 2 — Add the channel type
-
-Register `HAPS_3GPP_ITU` in OAI's channel-model enumeration and name mapping.
-This allows the configuration file to select the HAPS model.
-
-### Step 3 — Add the creation path
-
-Update `random_channel.c` so that selection of `HAPS_3GPP_ITU` creates the
-single-tap identity/placeholder descriptor used by the current HAPS model.
-
-The physical geometry and propagation losses are calculated by the HAPS
-modules, not by this placeholder descriptor.
-
-### Step 4 — Add the build sources
-
-Add the following implementation files to the RFsimulator build target:
-
-```text
-haps/haps_channel.c
-haps/haps_config.c
-haps/haps_geometry.c
-haps/haps_propagation.c
-haps/haps_gas.c
-haps/haps_rain.c
-```
-
-### Step 5 — Connect `simulator.cpp`
-
-The RFsimulator receive path must perform the following operations for a HAPS
-channel:
-
-1. Create a separate `haps_channel_ctx_t` for each UL or DL link.
-2. Pass the runtime carrier frequency and sample rate to the HAPS context.
-3. Obtain the calculated delay through `haps_channel_get_delay_info()`.
-4. Transfer the integer delay to OAI's `channel_offset` mechanism.
-5. Apply IQ attenuation and optional fixed Doppler through
-   `haps_channel_process()`.
-6. Destroy the HAPS context when the RFsimulator link is closed.
-
-The propagation delay is not applied inside the per-sample IQ multiplication
-loop. The current implementation prepares an integer sample offset that is
-handled by RFsimulator.
-
-### Step 6 — Add the configuration
-
-Select the HAPS channel type in the RFsimulator channel records and define the
-matching entries in the `hapsmod` list.
-
-The link names must match:
-
-```text
-rfsimu_channel_enB0   # Downlink
-rfsimu_channel_ue0    # Uplink
-```
-
-If `model_name` and the corresponding `hapsmod` record do not match,
-`haps_load_config()` cannot select the intended parameter set.
-
-## 5. Integration Verification
-
-After building OAI, verify the integration in this order:
-
-1. Confirm that the build includes every HAPS implementation file.
-2. Confirm that `HAPS_3GPP_ITU` is accepted by the channel configuration.
-3. Confirm that separate UL and DL HAPS contexts are created.
-4. Check for `HAPS ACTIVE` messages in the RFsimulator logs.
-5. Check for `HAPS DELAY ACTIVE` when propagation delay is enabled.
-6. Verify that the logged runtime frequency and sample rate are correct.
-7. Compare the logged slant range, delay, FSPL, and integer sample count with
-   independent calculations.
-
-Useful source checks include:
+Use an existing OAI Git checkout and a new destination directory. Run this
+example from the root of the HAPS module repository; adjust the paths first.
+The destination below is separate from an existing experiment worktree.
 
 ```bash
-rg -n "HAPS_3GPP_ITU|haps_channel" \
-  ~/openairinterface5g/radio/rfsimulator \
-  ~/openairinterface5g/openair1/SIMULATION/TOOLS
+haps_module_dir="$(pwd)"
+haps_oai_source="$HOME/openairinterface5g"
+haps_oai_tree="$HOME/openairinterface5g_haps_reproduce_9313cbe"
+
+git -C "$haps_oai_source" fetch --no-tags \
+  https://github.com/duranta-project/openairinterface5g.git \
+  9313cbea82bc3c6b8ff695dd808a0cde5f431724
+
+git -C "$haps_oai_source" worktree add --detach "$haps_oai_tree" \
+  9313cbea82bc3c6b8ff695dd808a0cde5f431724
+
+git -C "$haps_oai_tree" apply --check --whitespace=nowarn \
+  "$haps_module_dir/integration/patches/author_rfsim_9313cbe.patch"
+
+git -C "$haps_oai_tree" apply --whitespace=nowarn \
+  "$haps_module_dir/integration/patches/author_rfsim_9313cbe.patch"
+
+python3 "$haps_module_dir/integration/verify_snapshot.py" --oai "$haps_oai_tree"
 ```
 
-## 6. Patch Files for a Public Release
+The complete patch installs its own `radio/rfsimulator/haps/` files. Use that
+embedded snapshot when reproducing the author runs; copying a later `src/`
+version over it changes the source identity. The patch preserves historical
+formatting, so `--whitespace=nowarn` replays it without reformatting its code.
+The verifier checks the patch digest, the pinned OAI HEAD and all 26 recorded
+output files. It does not build or execute OAI.
 
-The first public release should pin one tested OAI commit and provide patches
-generated against that exact revision. A suitable future structure is:
+## Build and configure
 
-```text
-integration/
-├── README.md
-└── patches/
-    ├── 0001-register-haps-channel-type.patch
-    ├── 0002-add-haps-rfsimulator-processing.patch
-    └── 0003-add-haps-build-sources.patch
+Install the dependencies required by the pinned OAI revision first. A direct
+CMake/Ninja build for the RFsimulator, gNB and UE is:
+
+```bash
+cmake -S "$haps_oai_tree" \
+  -B "$haps_oai_tree/cmake_targets/ran_build/build" -GNinja \
+  -DOAI_SIMU=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo -DENABLE_TESTS=OFF
+
+cmake --build "$haps_oai_tree/cmake_targets/ran_build/build" \
+  --target rfsimulator nr-softmodem nr-uesoftmodem --parallel 2
 ```
 
-Do not publish patches generated from an unspecified or changing OAI branch.
-Without a pinned base commit, the patch may fail or modify the wrong code.
+The three outputs are `librfsimulator.so`, `nr-softmodem` and
+`nr-uesoftmodem` in that build directory. Build flags, compiler and dependencies
+can change binary hashes even when source hashes match. This build recipe
+is provided for reconstruction; no additional full build was performed for
+this publication.
 
-## 7. Files That Belong Elsewhere
+Use the [matched configuration profiles](../examples/README.md) for the
+selected elevation and experiment mode. They include the current UE
+`pdu_sessions` syntax, consistent PLMN/slice settings, UE ECEF positions,
+`do_SRS = "none"`, list-type `rfsimulator` sections and `min_rxtxtime = 6`.
+Nominal SA and E9 use different channel flags. Keep the SIB1/SIB19 assistance
+for ordinary SA; the profile generator documents the coreless E9 mode.
+Open5GS, subscriber provisioning and UE network isolation for traffic
+measurements are separate runtime setup steps.
 
-- HAPS implementation files belong in `src/`.
-- Example `.conf` files belong in `examples/`.
-- Reference measurements and validation outputs belong in `validation/`.
-- User-facing explanations belong in `docs/`.
-- OAI core modifications belong in revision-specific patch files under
-  `integration/patches/`.
+## What the patch contains
+
+| Area | Contents |
+|---|---|
+| `radio/rfsimulator/simulator.cpp` | HAPS context lifecycle, runtime frequency/sample-rate binding, SISO receive-path processing, delayed history reads and startup zero IQ |
+| `radio/rfsimulator/CMakeLists.txt` | The six implemented HAPS C modules in the RFsimulator build |
+| `radio/rfsimulator/haps/` | 19 author files, including the RNG mix/eight-output warm-up, a rain probe and empty historical placeholders |
+| `openair1/SIMULATION/TOOLS/{sim.h,random_channel.c}` | Channel-model registration for HAPS and the existing BASIC_STATIC/TWO_TAP_RAYLEIGH controls |
+| `openair2/LAYER2/NR_MAC_UE/nr_ra_procedures.c` | Common SSB/RO assignment on the four-step CFRA path |
+| `openair2/LAYER2/NR_MAC_gNB/nr_radio_config.c` | NTN access indication in SIB1 when NTN configuration is present |
+| `openair2/LAYER2/NR_MAC_UE/nr_ue_procedures.c` | L1 SSB measurement logging used by the author runs |
+
+The SISO HAPS branch processes each link once. For integer delay, RFsimulator
+reads input history at `timestamp - channel_offset`; insufficient startup
+history produces zero IQ. PSS/SSS detection code is inherited from the pinned
+OAI base. Only the six implemented HAPS modules are built; empty atmosphere,
+cloud and scintillation files do not implement those effects.
+
+Delay quantization uses `ceil(sample_rate * geometric_delay)`: at 20 km and
+61.44 Msamples/s this is 4099 samples. The pinned RFsimulator's final
+channel-model IQ accumulation uses `lroundf` (nearest integer, half-way cases
+away from zero) before storage in its 16-bit sample buffers. The author E8
+campaign recorded gNB `TX_AMP = 519` LSB; this is a recorded run setting,
+not a portable amplitude guarantee for other configurations.
+
+## Validation and upstream status
+
+Publication checks applied the unchanged patch to a fresh full checkout of
+`9313cbe`, verified seven modified upstream pre-image Git blobs, and matched
+all 26 post-image SHA-256 values in [the manifest](patches/manifest.json).
+Earlier standalone checks exercised the six real HAPS C sources and the
+RFsim bridge branch with narrow OAI API stubs. They do not replace a full
+modem build or network experiment.
+
+The author machine subsequently built this pinned integration and executed:
+
+- E8: 24 attenuation/noise-probe points, using PHY-test synchronization and
+  SSB SINR observations.
+- E9: 25 seeds for each of two environments and four elevations (200 real
+  CFRA attempts), plus a forced-LoS control.
+- SA: ordinary SA/Open5GS access and application measurements at 90, 60, 30
+  and 10 degrees, with SIB19/NTN timing before the first PRACH.
+
+These are the author reruns. Their sample sizes and measured values must
+remain distinct from the paper's original reference dataset; this patch
+publication does not establish numerical identity or edit the manuscript.
+No new full modem run or upstream CI result is claimed here.
+
+The two general OAI access fixes were submitted separately upstream:
+
+- [PR #887: CFRA SSB/RO initialization](https://github.com/duranta-project/openairinterface5g/pull/887)
+- [PR #888: SIB1 NTN access indication](https://github.com/duranta-project/openairinterface5g/pull/888)
+
+Both fixes are already included in this pinned integration. Their upstream
+submission is separate from acceptance/merge. The published snapshot targets
+`9313cbe`; it is not a claim that the patch applies to a later `develop`.
