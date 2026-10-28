@@ -3,7 +3,7 @@
   "oai_commit": "9313cbea82bc3c6b8ff695dd808a0cde5f431724",
   "author_source_commit": "699a5453a0713b0978944e583357a7b1b6056591",
   "patch": "author_rfsim_v0.1.2_9313cbe.patch",
-  "patch_sha256": "fc9739ce863d87aafcca2480f385adcdc189ca08c233eb3d7d58576c5654f505",
+  "patch_sha256": "acc2ede2a0343aa0b6ea1bc016f5eb95a5fcd88afeda914582087f19b4790967",
   "scope": "Author HAPS module plus RFsim API port, HAPS model registry, SIB1 and CFRA, existing-L1 measurement logger; upstream PSS/SSS retained",
   "upstream_preimage_git_blobs": {
     "radio/rfsimulator/simulator.cpp": "4a381f07fef0f55178dfb691a011da417eaf1fda",
@@ -21,12 +21,8 @@
     "openair2/LAYER2/NR_MAC_UE/nr_ue_procedures.c": "8511c9227e312c5444a3b19dc7120b21229557a4c0f59eebbf17c85dd9ed3300",
     "openair2/LAYER2/NR_MAC_gNB/nr_radio_config.c": "e61d0f9c48be25e232f01d6c3c1965d28933b5571169aa3a04f689a8bbcf8d51",
     "radio/rfsimulator/CMakeLists.txt": "0ee09006c1fb1b81b0a2987a757ccc478a056762ff14c809fd27803d16e4c676",
-    "radio/rfsimulator/haps/haps_atmosphere.c": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "radio/rfsimulator/haps/haps_atmosphere.h": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "radio/rfsimulator/haps/haps_channel.c": "8d643bd8773171f55192b169b5e23145347f2cfaaf530579f92e4e30dc1480cd",
     "radio/rfsimulator/haps/haps_channel.h": "1af3dfb90f637916188e98b0deab9252276a1d50c9540cb7cae8313e67f9dc3b",
-    "radio/rfsimulator/haps/haps_cloud.c": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "radio/rfsimulator/haps/haps_cloud.h": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "radio/rfsimulator/haps/haps_config.c": "5b1fdd9eb723e80aaeda8ed5cb70b5479a4d2c448df962d60ac81c85bb16f747",
     "radio/rfsimulator/haps/haps_config.h": "d744c95a2a339bc29bdbb9bcd5eaff2f67d6c8e92fd2b18a52fc8a7f3369657b",
     "radio/rfsimulator/haps/haps_gas.c": "16c4bfa5c3c59978c6f044d909aafb1e45df9f47e55b84d67239bf949c0a6a28",
@@ -37,19 +33,25 @@
     "radio/rfsimulator/haps/haps_propagation.h": "fd9f59e242ab30bbb13cff36baf582a936225a05f8e9f7f98acd44c03b48ea8a",
     "radio/rfsimulator/haps/haps_rain.c": "9fa37d61739657349aad57d7ce82936c3ce169db35f1b0ea60087241edb1bf45",
     "radio/rfsimulator/haps/haps_rain.h": "3d2b8488aaa816fb94aa9a00e7275a56e703649822ecdd6bb9901674d0914a5e",
-    "radio/rfsimulator/haps/haps_scintillation.c": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "radio/rfsimulator/haps/haps_scintillation.h": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "radio/rfsimulator/haps/test_haps_rain.c": "6d536366a3e83db0fdac17e1de1c0a95639924b5f3e2f2af777922e5042b5b0a",
     "radio/rfsimulator/simulator.cpp": "600e14143ddda7e67d08beadaa8e28b1695fef26e2f7927ced7fb84fb2b8e1b4"
   },
-  "source_snapshot_note": "v0.1.2 nearest-delay update of the author integration; original ceil rerun snapshot preserved separately. No new RFsim campaign is claimed.",
+  "source_snapshot_note": "v0.1.2 nearest-delay code with empty-file packaging cleanup; 20 nonempty integration files. Original 26-file artifact remains in immutable commit history. No new RFsim campaign is claimed.",
   "validation": {
-    "publication_checks": "Full patch applied to the pinned full OAI base and all recorded post-image files checked; see docs/DELAY_QUANTIZATION.md.",
+    "publication_checks": "Cleaned patch applies to the pinned full OAI base; 20 nonempty post-image files verified and six placeholder paths required absent.",
     "standalone_checks": "Actual module and embedded channel/geometry/propagation/gas/rain sources; nearest and legacy modes, binary-exact ties and four angle profiles; ASan/UBSan with leak detection disabled in hosted runner.",
     "author_machine_runs": "Previously completed E8/E9/SA runs used the frozen ceil integration, not this new v0.1.2 snapshot.",
     "publication_scope": "No new full modem build or RFsim campaign is claimed for v0.1.2."
   },
   "module_version": "v0.1.2",
   "delay_quantization": "floor(tau*Fs + 0.5), non-negative half-sample ties upward; legacy ceil optional via HAPS_DELAY_ROUNDING_CEIL",
-  "previous_integration_commit": "ee1cea5a4afed9ef250a622ba43b1749019d5afa"
+  "previous_integration_commit": "ee1cea5a4afed9ef250a622ba43b1749019d5afa",
+  "absent_files": [
+    "radio/rfsimulator/haps/haps_atmosphere.c",
+    "radio/rfsimulator/haps/haps_atmosphere.h",
+    "radio/rfsimulator/haps/haps_cloud.c",
+    "radio/rfsimulator/haps/haps_cloud.h",
+    "radio/rfsimulator/haps/haps_scintillation.c",
+    "radio/rfsimulator/haps/haps_scintillation.h"
+  ]
 }

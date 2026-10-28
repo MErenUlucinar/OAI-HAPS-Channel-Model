@@ -1,0 +1,18 @@
+diff --git a/radio/rfsimulator/haps/haps_atmosphere.c b/radio/rfsimulator/haps/haps_atmosphere.c
+deleted file mode 100644
+index e69de29..0000000
+diff --git a/radio/rfsimulator/haps/haps_atmosphere.h b/radio/rfsimulator/haps/haps_atmosphere.h
+deleted file mode 100644
+index e69de29..0000000
+diff --git a/radio/rfsimulator/haps/haps_cloud.c b/radio/rfsimulator/haps/haps_cloud.c
+deleted file mode 100644
+index e69de29..0000000
+diff --git a/radio/rfsimulator/haps/haps_cloud.h b/radio/rfsimulator/haps/haps_cloud.h
+deleted file mode 100644
+index e69de29..0000000
+diff --git a/radio/rfsimulator/haps/haps_scintillation.c b/radio/rfsimulator/haps/haps_scintillation.c
+deleted file mode 100644
+index e69de29..0000000
+diff --git a/radio/rfsimulator/haps/haps_scintillation.h b/radio/rfsimulator/haps/haps_scintillation.h
+deleted file mode 100644
+index e69de29..0000000

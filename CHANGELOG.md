@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased — packaging cleanup after v0.1.2
+
+- Remove six zero-byte atmosphere/cloud/scintillation `.c`/`.h` entries from
+  both full integration patches; retain all 20 nonempty files unchanged.
+- Update manifests, checksums and integration documentation; require the six
+  excluded paths to be absent when verifying a cleaned installation.
+- Provide a removal-only patch for existing integrations. Published tags and
+  original experiment artifacts remain available in immutable Git history.
+
 ## v0.1.2 — 2026-10-28
 
 - Adopt review patch 0001's delay rule: `floor(tau*Fs + 0.5)` by default,

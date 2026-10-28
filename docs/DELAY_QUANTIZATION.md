@@ -51,8 +51,9 @@ patch use the nearest default and the optional legacy macro. The default
 manifest points to
 [`author_rfsim_v0.1.2_9313cbe.patch`](../integration/patches/author_rfsim_v0.1.2_9313cbe.patch).
 The OAI base remains `9313cbea82bc3c6b8ff695dd808a0cde5f431724`.
-Of the 26 embedded post-image files, only `radio/rfsimulator/haps/haps_channel.c`
-changes relative to the original rerun snapshot. The full patch's SHA-256 and
+Of the 20 nonempty embedded files, only `radio/rfsimulator/haps/haps_channel.c`
+changes relative to the ceil comparison. Six zero-byte file creations have
+been removed from both full patches as a subsequent packaging cleanup. The full patch's SHA-256 and
 all source hashes are in [the current manifest](../integration/patches/manifest.json).
 
 For an already matching author integration, the
@@ -66,11 +67,15 @@ loaded shared library on the author's computer.
 
 The completed author E8/E9/SA reruns used **ceil**. Their raw logs, binary
 hashes and measured KPI records are not changed or relabeled by this release.
-The old full integration patch remains byte-identical at
-[`author_rfsim_9313cbe.patch`](../integration/patches/author_rfsim_9313cbe.patch),
-SHA-256 `c4530b27af37a1f9b7c11f6caceb12c50f4831ad496bcb6861a4bee1e28b3515`.
-Use its [frozen manifest](../integration/patches/manifest.author-reruns-ceil.json)
-with `verify_snapshot.py --manifest ...` to reproduce that source identity.
+The current [ceil comparison patch](../integration/patches/author_rfsim_9313cbe.patch)
+retains all 20 original nonempty file hashes and omits the six zero-byte files.
+Its [manifest](../integration/patches/manifest.author-reruns-ceil.json) verifies
+that cleaned tree. The exact original 26-file patch remains in
+[immutable commit history](https://github.com/MErenUlucinar/OAI-HAPS-Channel-Model/blob/ee1cea5a4afed9ef250a622ba43b1749019d5afa/integration/patches/author_rfsim_9313cbe.patch),
+with SHA-256 `c4530b27af37a1f9b7c11f6caceb12c50f4831ad496bcb6861a4bee1e28b3515`.
+The [integration guide](../integration/README.md) links the original manifest
+and explains the removal-only update for older worktrees. Published version
+tags have not been moved.
 The original `validation/reference_results.csv` also stays unchanged and is
 explicitly historical ceil data.
 
@@ -99,4 +104,4 @@ detection is disabled because the hosted runner cannot inspect the required
 `/proc` task information. The module results are recorded in
 [`delay_rounding_results.json`](../validation/delay_rounding_results.json).
 Full-patch checks apply the patch to a fresh pinned OAI checkout and verify
-all 26 output hashes. These checks are not a full OAI build or modem run.
+all 20 nonempty output hashes and the absence of the six excluded paths. These checks are not a full OAI build or modem run.
