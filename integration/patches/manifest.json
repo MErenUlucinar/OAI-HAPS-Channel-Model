@@ -2,8 +2,8 @@
   "oai_repository": "https://github.com/duranta-project/openairinterface5g",
   "oai_commit": "9313cbea82bc3c6b8ff695dd808a0cde5f431724",
   "author_source_commit": "699a5453a0713b0978944e583357a7b1b6056591",
-  "patch": "author_rfsim_9313cbe.patch",
-  "patch_sha256": "c4530b27af37a1f9b7c11f6caceb12c50f4831ad496bcb6861a4bee1e28b3515",
+  "patch": "author_rfsim_v0.1.2_9313cbe.patch",
+  "patch_sha256": "fc9739ce863d87aafcca2480f385adcdc189ca08c233eb3d7d58576c5654f505",
   "scope": "Author HAPS module plus RFsim API port, HAPS model registry, SIB1 and CFRA, existing-L1 measurement logger; upstream PSS/SSS retained",
   "upstream_preimage_git_blobs": {
     "radio/rfsimulator/simulator.cpp": "4a381f07fef0f55178dfb691a011da417eaf1fda",
@@ -23,7 +23,7 @@
     "radio/rfsimulator/CMakeLists.txt": "0ee09006c1fb1b81b0a2987a757ccc478a056762ff14c809fd27803d16e4c676",
     "radio/rfsimulator/haps/haps_atmosphere.c": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "radio/rfsimulator/haps/haps_atmosphere.h": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "radio/rfsimulator/haps/haps_channel.c": "930f5cd5365e00025c227a86e95f80f2668aa6a3c5bc2353610ae8ac48491a1b",
+    "radio/rfsimulator/haps/haps_channel.c": "8d643bd8773171f55192b169b5e23145347f2cfaaf530579f92e4e30dc1480cd",
     "radio/rfsimulator/haps/haps_channel.h": "1af3dfb90f637916188e98b0deab9252276a1d50c9540cb7cae8313e67f9dc3b",
     "radio/rfsimulator/haps/haps_cloud.c": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "radio/rfsimulator/haps/haps_cloud.h": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
@@ -42,11 +42,14 @@
     "radio/rfsimulator/haps/test_haps_rain.c": "6d536366a3e83db0fdac17e1de1c0a95639924b5f3e2f2af777922e5042b5b0a",
     "radio/rfsimulator/simulator.cpp": "600e14143ddda7e67d08beadaa8e28b1695fef26e2f7927ced7fb84fb2b8e1b4"
   },
-  "source_snapshot_note": "Self-contained author integration used by the pinned E8/E9/SA build; preserve the embedded module snapshot for reproduction.",
+  "source_snapshot_note": "v0.1.2 nearest-delay update of the author integration; original ceil rerun snapshot preserved separately. No new RFsim campaign is claimed.",
   "validation": {
-    "publication_checks": "Exact application to a fresh full checkout at the pinned OAI commit; 26 post-image SHA-256 values and seven modified upstream pre-image Git blobs checked.",
-    "prior_standalone_checks": "Six real HAPS C sources and the RFsim bridge branch exercised with narrow OAI API stubs; these checks are not full modem execution.",
-    "author_machine_runs": "E8 sweep, E9 real CFRA campaign (25 seeds x 8 conditions, plus one forced-LoS control), and four-elevation SA/Open5GS campaign executed on the author machine using the pinned integration.",
-    "publication_scope": "No new full OAI build, RFsim campaign, current-develop compatibility claim, or upstream merge is claimed by this publication."
-  }
+    "publication_checks": "Full patch applied to the pinned full OAI base and all recorded post-image files checked; see docs/DELAY_QUANTIZATION.md.",
+    "standalone_checks": "Actual module and embedded channel/geometry/propagation/gas/rain sources; nearest and legacy modes, binary-exact ties and four angle profiles; ASan/UBSan with leak detection disabled in hosted runner.",
+    "author_machine_runs": "Previously completed E8/E9/SA runs used the frozen ceil integration, not this new v0.1.2 snapshot.",
+    "publication_scope": "No new full modem build or RFsim campaign is claimed for v0.1.2."
+  },
+  "module_version": "v0.1.2",
+  "delay_quantization": "floor(tau*Fs + 0.5), non-negative half-sample ties upward; legacy ceil optional via HAPS_DELAY_ROUNDING_CEIL",
+  "previous_integration_commit": "ee1cea5a4afed9ef250a622ba43b1749019d5afa"
 }

@@ -230,7 +230,7 @@ quant_error=+2.676 ns
 |---|---|
 | `one_way_delay` | Physical one-way delay calculated from slant range |
 | `exact_samples` | Delay expressed as a non-integer number of samples |
-| `integer_samples` | Delay rounded upward for `channel_offset` |
+| `integer_samples` | Delay rounded to nearest sample for `channel_offset` (half ties upward; v0.1.2 default) |
 | `fractional_residual` | Fractional part of the exact sample delay |
 | `applied_delay` | Delay represented by the integer sample count |
 | `quant_error` | Difference between applied and physical delay |
@@ -249,10 +249,10 @@ The exact delay in samples is:
 N_{\mathrm{exact}} = \tau F_s
 ```
 
-Version `v0.1.0` uses upward integer quantization:
+Version `v0.1.2` rounds non-negative delays to the nearest sample, with half-sample ties upward:
 
 ```math
-N_{\mathrm{integer}} = \left\lceil N_{\mathrm{exact}} \right\rceil
+N_{\mathrm{integer}} = \left\lfloor N_{\mathrm{exact}} + \tfrac12 \right\rfloor
 ```
 
 The applied delay and quantization error are:
@@ -267,8 +267,11 @@ e_q = \tau_{\mathrm{applied}} - \tau
 
 The quantization error depends on the fractional part of
 `N_exact`; therefore, it does not increase linearly with distance or decrease
-linearly with elevation. With upward quantization it remains non-negative and
-less than one sample period.
+linearly with elevation. With nearest quantization its magnitude is at most
+half a sample period (8.138 ns at 61.44 Msps). Versions v0.1.0/v0.1.1 used
+`ceil`; define `HAPS_DELAY_ROUNDING_CEIL` when compiling HAPS C sources to
+restore that mode, or use the frozen integration documented in the
+[delay guide](DELAY_QUANTIZATION.md).
 
 The free-space path loss is:
 
@@ -309,19 +312,20 @@ The following results use a 20 km HAPS altitude, a 3.6192 GHz carrier, and a
 | Elevation | Slant range | One-way delay | Exact samples | Integer samples | Quantization error | FSPL |
 |---:|---:|---:|---:|---:|---:|---:|
 | 90° | 20.000 km | 66.712819 µs | 4098.835602 | 4099 | +2.676 ns | 129.64 dB |
-| 60° | 23.082 km | 76.993292 µs | 4730.467840 | 4731 | +8.661 ns | 130.89 dB |
+| 60° | 23.082 km | 76.993292 µs | 4730.467840 | 4730 | -7.615 ns | 130.89 dB |
 | 30° | 39.814 km | 132.806663 µs | 8159.641354 | 8160 | +5.837 ns | 135.62 dB |
-| 10° | 109.910 km | 366.619393 µs | 22525.095525 | 22526 | +14.721 ns | 144.44 dB |
+| 10° | 109.910 km | 366.619393 µs | 22525.095525 | 22525 | -1.555 ns | 144.44 dB |
 
 As elevation decreases, the slant range, physical propagation delay, and FSPL
 increase. This trend is physically consistent. The quantization errors do not
 follow the same monotonic trend because each value is determined by a different
 fractional sample residual.
 
-The machine-readable version of these results is available in
-[`validation/reference_results.csv`](../validation/reference_results.csv). Each
-row represents one elevation-angle test, and the column names include their
-measurement units.
+The current standalone C results are in
+[`validation/delay_rounding_results.json`](../validation/delay_rounding_results.json).
+The historical [`validation/reference_results.csv`](../validation/reference_results.csv)
+remains unchanged and records the former `ceil` mode; it should not be
+interpreted as a new v0.1.2 measurement campaign.
 
 ## 10. Verification Procedure
 
@@ -333,8 +337,8 @@ Use the following sequence for an initial verification:
 3. Verify slant range and elevation from the configured coordinates.
 4. Recalculate one-way delay using `d_slant / c`.
 5. Recalculate FSPL using the logged distance and runtime carrier frequency.
-6. Verify that `integer_samples = ceil(exact_samples)`.
-7. Verify that the quantization error is between zero and one sample period.
+6. Verify that `integer_samples = floor(exact_samples + 0.5)` for the v0.1.2 default.
+7. Verify that the absolute quantization error is at most half a sample period.
 8. Enable clutter, shadow fading, BEL, gas, and rain individually.
 9. Confirm that each enabled component appears in `total_loss`.
 10. Repeat the run with the same seed and verify reproducible random results.

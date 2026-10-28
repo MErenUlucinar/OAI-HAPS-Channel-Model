@@ -1,23 +1,24 @@
 # Author integration for OAI RFsimulator
 
-The published, self-contained [author integration patch](patches/author_rfsim_9313cbe.patch)
-includes the `simulator.cpp` connection and the HAPS source snapshot used in
-our E8/E9/SA experiments. It is pinned to this exact OAI revision:
+The default, self-contained [v0.1.2 author integration patch](patches/author_rfsim_v0.1.2_9313cbe.patch)
+includes the `simulator.cpp` connection and nearest-sample HAPS delay quantization.
+The frozen ceil snapshot used in the original author E8/E9/SA runs is retained
+separately below. Both target this exact OAI revision:
 
 | Item | Value |
 |---|---|
 | OAI repository | [duranta-project/openairinterface5g](https://github.com/duranta-project/openairinterface5g) |
 | OAI base commit | `9313cbea82bc3c6b8ff695dd808a0cde5f431724` |
 | Original author checkout | `699a5453a0713b0978944e583357a7b1b6056591` |
-| Patch | `patches/author_rfsim_9313cbe.patch` |
-| Patch SHA-256 | `c4530b27af37a1f9b7c11f6caceb12c50f4831ad496bcb6861a4bee1e28b3515` |
+| Patch | `patches/author_rfsim_v0.1.2_9313cbe.patch` |
+| Patch SHA-256 | `fc9739ce863d87aafcca2480f385adcdc189ca08c233eb3d7d58576c5654f505` |
 | Recorded output files | 26; see [manifest.json](patches/manifest.json) |
 
 The `699a5453` value identifies the source checkout from which the author's
 integration was exported. Apply the published patch to **`9313cbe`**.
-The file is the author's ported integration, not the review-side full-tree
-patch. Its bytes and recorded source hashes are preserved from the tested
-port package.
+The file is the author's ported integration with the v0.1.2 rounding update.
+Only the embedded `haps_channel.c` differs from the frozen rerun source snapshot;
+the original patch and its hashes are preserved separately for reproduction.
 
 ## Apply to a separate worktree
 
@@ -38,17 +39,18 @@ git -C "$haps_oai_source" worktree add --detach "$haps_oai_tree" \
   9313cbea82bc3c6b8ff695dd808a0cde5f431724
 
 git -C "$haps_oai_tree" apply --check --whitespace=nowarn \
-  "$haps_module_dir/integration/patches/author_rfsim_9313cbe.patch"
+  "$haps_module_dir/integration/patches/author_rfsim_v0.1.2_9313cbe.patch"
 
 git -C "$haps_oai_tree" apply --whitespace=nowarn \
-  "$haps_module_dir/integration/patches/author_rfsim_9313cbe.patch"
+  "$haps_module_dir/integration/patches/author_rfsim_v0.1.2_9313cbe.patch"
 
 python3 "$haps_module_dir/integration/verify_snapshot.py" --oai "$haps_oai_tree"
 ```
 
 The complete patch installs its own `radio/rfsimulator/haps/` files. Use that
-embedded snapshot when reproducing the author runs; copying a later `src/`
-version over it changes the source identity. The patch preserves historical
+embedded v0.1.2 snapshot for new nearest-mode work; copying another `src/`
+version over it changes the source identity. Use the frozen ceil patch below
+to reproduce the original author runs. The patch preserves historical
 formatting, so `--whitespace=nowarn` replays it without reformatting its code.
 The verifier checks the patch digest, the pinned OAI HEAD and all 26 recorded
 output files. It does not build or execute OAI.
@@ -100,8 +102,10 @@ history produces zero IQ. PSS/SSS detection code is inherited from the pinned
 OAI base. Only the six implemented HAPS modules are built; empty atmosphere,
 cloud and scintillation files do not implement those effects.
 
-Delay quantization uses `ceil(sample_rate * geometric_delay)`: at 20 km and
-61.44 Msamples/s this is 4099 samples. The pinned RFsimulator's final
+Default delay quantization uses `floor(sample_rate * geometric_delay + 0.5)`
+with non-negative half ties upward: 4099/4730/8160/22525 samples at
+90/60/30/10 degrees and 61.44 Msamples/s. `HAPS_DELAY_ROUNDING_CEIL` restores
+the former 4099/4731/8160/22526 values. See the [delay guide](../docs/DELAY_QUANTIZATION.md). The pinned RFsimulator's final
 channel-model IQ accumulation uses `lroundf` (nearest integer, half-way cases
 away from zero) before storage in its 16-bit sample buffers. The author E8
 campaign recorded gNB `TX_AMP = 519` LSB; this is a recorded run setting,
@@ -109,14 +113,19 @@ not a portable amplitude guarantee for other configurations.
 
 ## Validation and upstream status
 
-Publication checks applied the unchanged patch to a fresh full checkout of
+Publication checks applied the v0.1.2 patch to a fresh full checkout of
 `9313cbe`, verified seven modified upstream pre-image Git blobs, and matched
 all 26 post-image SHA-256 values in [the manifest](patches/manifest.json).
 Earlier standalone checks exercised the six real HAPS C sources and the
 RFsim bridge branch with narrow OAI API stubs. They do not replace a full
 modem build or network experiment.
 
-The author machine subsequently built this pinned integration and executed:
+Standalone regression checks also compile the actual module and embedded
+channel sources in nearest and legacy modes, exercising rounding boundaries,
+four geometry profiles and unchanged I/Q gain. Address/undefined-behavior
+sanitizers passed with leak detection disabled for the hosted runner.
+
+The author machine previously built the **frozen ceil integration** and executed:
 
 - E8: 24 attenuation/noise-probe points, using PHY-test synchronization and
   SSB SINR observations.
@@ -128,7 +137,8 @@ The author machine subsequently built this pinned integration and executed:
 These are the author reruns. Their sample sizes and measured values must
 remain distinct from the paper's original reference dataset; this patch
 publication does not establish numerical identity or edit the manuscript.
-No new full modem run or upstream CI result is claimed here.
+No new v0.1.2 full modem run or upstream CI result is claimed here. The prior
+measurements remain identified with the ceil sources and their original hashes.
 
 The two general OAI access fixes were submitted separately upstream:
 
@@ -138,3 +148,41 @@ The two general OAI access fixes were submitted separately upstream:
 Both fixes are already included in this pinned integration. Their upstream
 submission is separate from acceptance/merge. The published snapshot targets
 `9313cbe`; it is not a claim that the patch applies to a later `develop`.
+
+## Reproduce the original author runs (ceil)
+
+The original patch remains byte-identical at
+[`author_rfsim_9313cbe.patch`](patches/author_rfsim_9313cbe.patch), SHA-256
+`c4530b27af37a1f9b7c11f6caceb12c50f4831ad496bcb6861a4bee1e28b3515`.
+Its frozen [manifest](patches/manifest.author-reruns-ceil.json) records the
+original 26 post-image files. In the separate-worktree example, select that
+patch instead, then verify with:
+
+```bash
+python3 "$haps_module_dir/integration/verify_snapshot.py" \
+  --oai "$haps_oai_tree" \
+  --manifest "$haps_module_dir/integration/patches/manifest.author-reruns-ceil.json"
+```
+
+The v0.1.1 release tag itself predates publication of the full integration.
+This frozen manifest identifies the integration used in the reruns, rather
+than claiming those integration files were present in the v0.1.1 tag archive.
+
+## Upgrade an existing matching ceil integration
+
+For a worktree matching the frozen manifest, the small
+[`author_rfsim_delay_nearest.patch`](patches/author_rfsim_delay_nearest.patch)
+changes only the channel's rounding block. Stop the modems before rebuilding:
+
+```bash
+git -C "$haps_oai_tree" apply --check \
+  "$haps_module_dir/integration/patches/author_rfsim_delay_nearest.patch"
+git -C "$haps_oai_tree" apply \
+  "$haps_module_dir/integration/patches/author_rfsim_delay_nearest.patch"
+python3 "$haps_module_dir/integration/verify_snapshot.py" --oai "$haps_oai_tree"
+cmake --build "$haps_oai_tree/cmake_targets/ran_build/build" \
+  --target rfsimulator --parallel 2
+```
+
+Restart both modems so they load the new library. Do not rewrite prior run
+metadata or raw logs to describe them as nearest-mode results.

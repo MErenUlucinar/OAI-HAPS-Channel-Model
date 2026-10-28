@@ -16,9 +16,11 @@ def sha256(path):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--oai', type=Path, required=True)
+    parser.add_argument('--manifest', type=Path, help='Optional manifest, e.g. the frozen author-reruns-ceil manifest')
     args = parser.parse_args()
     here = Path(__file__).resolve().parent
-    manifest = json.loads((here / 'patches/manifest.json').read_text())
+    manifest_path = args.manifest or here / 'patches/manifest.json'
+    manifest = json.loads(manifest_path.read_text())
     oai = args.oai.expanduser().resolve()
     try:
         if sha256(here / 'patches' / manifest['patch']) != manifest['patch_sha256']:

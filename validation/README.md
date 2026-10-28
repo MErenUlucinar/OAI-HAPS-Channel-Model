@@ -47,54 +47,41 @@ The `test_group` column identifies the purpose of each row:
 
 ## Delay Validation
 
-The exact one-way propagation delay and sample count are calculated as:
+The v0.1.2 default follows the manuscript's nearest rule for non-negative delays:
 
 ```math
-\tau = \frac{d_{\mathrm{slant}}}{c}
+N = \left\lfloor \tau F_s + \tfrac12 \right\rfloor, \qquad
+\varepsilon_q = N/F_s - \tau
 ```
 
-```math
-N_{\mathrm{exact}} = \tau F_s
-```
+Half-sample ties round upward. The absolute one-way error is at most half a
+sample period: 8.138 ns at 61.44 Msps. `HAPS_DELAY_ROUNDING_CEIL` retains the
+former upward mode for comparisons. This is distinct from the final I/Q
+`lroundf` quantization, which has not changed.
 
-The current implementation uses ceiling quantization for the RFsimulator
-integer-sample delay:
+Run `python3 validation/test_delay.py --sanitize` for real C-source checks of
+both modes, binary-exact tie boundaries, delay-off behavior and unchanged
+I/Q gain. It needs Python 3 and a C compiler, uses temporary OAI API stubs,
+and does not run RFsim. Leak detection is disabled under the hosted runner;
+address and undefined-behavior instrumentation remain enabled. The checked
+results are in [delay_rounding_results.json](delay_rounding_results.json).
 
-```math
-N_{\mathrm{integer}} = \left\lceil N_{\mathrm{exact}} \right\rceil
-```
+| Elevation | Exact samples | v0.1.2 nearest | Legacy ceil | Nearest one-way error (ns) | RTT quantization error (samples) |
+|---:|---:|---:|---:|---:|---:|
+| 90° | 4098.835602 | 4099 | 4099 | +2.676 | +0.328796 |
+| 60° | 4730.467840 | 4730 | 4731 | -7.615 | -0.935681 |
+| 30° | 8159.641354 | 8160 | 8160 | +5.837 | +0.717292 |
+| 10° | 22525.095525 | 22525 | 22526 | -1.555 | -0.191050 |
 
-```math
-\tau_{\mathrm{applied}} = \frac{N_{\mathrm{integer}}}{F_s}
-```
+The RTT column is `2*(N - tau*Fs)`: the component due to quantizing two
+identical channel legs, not a measurement of the UE's complete TA residual.
+Its magnitude is below one sample for these four geometries.
 
-```math
-\varepsilon_q = \tau_{\mathrm{applied}} - \tau
-```
-
-At 61.44 Msps, one sample is approximately 16.276 ns. Therefore, ceiling
-quantization should satisfy:
-
-```math
-0 \leq \varepsilon_q < 16.276\ \mathrm{ns}
-```
-
-The quantization error is not expected to change linearly with elevation. It
-depends on the fractional part of `N_exact`, while elevation changes the slant
-range and the exact delay.
-
-### Baseline Geometry Results
-
-| Elevation | Slant range | Exact delay | Integer samples | Applied delay | Quantization error | FSPL |
-|---:|---:|---:|---:|---:|---:|---:|
-| 90° | 20.000 km | 66.712819 µs | 4099 | 66.715495 µs | 2.676 ns | 129.64 dB |
-| 60° | 23.082 km | 76.993292 µs | 4731 | 77.001953 µs | 8.661 ns | 130.89 dB |
-| 30° | 39.814 km | 132.806663 µs | 8160 | 132.812500 µs | 5.837 ns | 135.62 dB |
-| 10° | 109.910 km | 366.619393 µs | 22526 | 366.634115 µs | 14.721 ns | 144.44 dB |
-
-The delay, sample count, and FSPL increase as the elevation angle decreases
-because the HAPS–UE slant range increases. All four quantization errors remain
-below one sample period.
+The existing `reference_results.csv` is historical data using **ceil** and
+remains unchanged. The original author E8/E9/SA reruns also used ceil. Do not
+relabel those measurements as v0.1.2 or silently change their sample counts.
+See [the delay guide](../docs/DELAY_QUANTIZATION.md) for source provenance and
+full/incremental integration patches.
 
 ## How to Read the Dataset
 
@@ -123,8 +110,9 @@ Use the following checks when repeating a validation case:
    stored in the CSV.
 3. For probabilistic LOS, verify that the realized state follows
    `random_draw < plos_oai` for LOS and otherwise NLOS.
-4. For delay, verify the `ceil` rule and confirm that the quantization error is
-   non-negative and less than one sample period.
+4. For v0.1.2 default delay, verify `floor(tau*Fs + 0.5)` and an absolute error
+   at most half a sample. Historical CSV rows instead retain their documented
+   `ceil` rule and a non-negative error below one sample.
 5. Treat `link_status` as an integration observation, not as proof that an
    individual propagation formula is correct.
 

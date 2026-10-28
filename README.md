@@ -5,7 +5,7 @@ OpenAirInterface (OAI) RFsimulator. The implementation combines a static
 WGS-84-based HAPS-to-UE geometry with large-scale propagation effects based on
 3GPP TR 38.811 and selected ITU-R recommendations.
 
-> **Current development version:** v0.1.1 — Experimental (RNG initialization fix)
+> **Current version:** v0.1.2 — Experimental (nearest-sample delay quantization; RNG fix retained)
 
 > This project is a research prototype. It is not an official 3GPP or ITU
 > conformance implementation.
@@ -14,7 +14,8 @@ WGS-84-based HAPS-to-UE geometry with large-scale propagation effects based on
 
 - [User Guide](docs/USER_GUIDE.md)
 - [OAI Integration Guide](integration/README.md)
-- [Author RFsim integration patch (OAI 9313cbe)](integration/patches/author_rfsim_9313cbe.patch)
+- [v0.1.2 author RFsim integration patch (OAI 9313cbe)](integration/patches/author_rfsim_v0.1.2_9313cbe.patch)
+- [Delay quantization, legacy reproduction and tests](docs/DELAY_QUANTIZATION.md)
 - [Source Module Guide](src/README.md)
 - [Runnable configuration profiles (OAI 9313cbe)](examples/README.md)
 - [Configuration review fixes C1--C7](docs/CONFIGURATION_FIXES.md)
@@ -144,7 +145,7 @@ G_{\mathrm{IQ}} = 10^{-L_{\mathrm{applied}}/20}
 
 The published [author integration](integration/README.md) applies to OAI commit
 `9313cbea82bc3c6b8ff695dd808a0cde5f431724`. Its self-contained patch includes
-the tested HAPS source snapshot, `simulator.cpp` receive-path integration,
+the v0.1.2 HAPS source snapshot, `simulator.cpp` receive-path integration,
 model registration, build changes, and the CFRA/SIB1 access fixes.
 
 Follow the integration guide to create a separate OAI worktree, apply the
@@ -211,14 +212,18 @@ sample rate:
 | Elevation | Slant range | One-way delay | Integer samples | FSPL at 3.6192 GHz |
 |---:|---:|---:|---:|---:|
 | 90° | 20.000 km | 66.712819 µs | 4099 | 129.64 dB |
-| 60° | 23.082 km | 76.993292 µs | 4731 | 130.89 dB |
+| 60° | 23.082 km | 76.993292 µs | 4730 | 130.89 dB |
 | 30° | 39.814 km | 132.806663 µs | 8160 | 135.62 dB |
-| 10° | 109.910 km | 366.619393 µs | 22526 | 144.44 dB |
+| 10° | 109.910 km | 366.619393 µs | 22525 | 144.44 dB |
 
 These values are intended as reference calculations for geometry, FSPL, and
-integer-sample delay verification. The same dataset, including exact sample
-counts, applied delays, and quantization errors, is available in
-[`validation/reference_results.csv`](validation/reference_results.csv).
+integer-sample delay verification with v0.1.2's `floor(tau*Fs + 0.5)` rule
+(half-sample ties upward). Current standalone C results are in
+[`validation/delay_rounding_results.json`](validation/delay_rounding_results.json).
+The historical [`validation/reference_results.csv`](validation/reference_results.csv)
+is preserved unchanged and contains the former `ceil` values. The original
+E8/E9/SA author runs also used that frozen `ceil` integration; they have not
+been relabeled as v0.1.2 runs.
 
 
 ## Current Limitations

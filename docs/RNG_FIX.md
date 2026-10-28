@@ -84,5 +84,6 @@ already loaded RFsim library. Preserve the OAI integration patch, base commit,
 compiler/build information and per-run configuration with the experiment.
 
 Version the corrected sources with a new tag; do not move an existing version
-tag. The README identifies development version v0.1.1. A GitHub release is a
-separate publication step and should target the corrected source commit.
+tag. The v0.1.1 tag records the RNG fix. Version v0.1.2 retains that fix and
+changes delay quantization; see [DELAY_QUANTIZATION.md](DELAY_QUANTIZATION.md).
+A GitHub release is a separate publication step targeting its source commit.

@@ -65,8 +65,8 @@ def check_triplet(gnb,ue,channel,angle,mode,scenario='rural',seed=1):
     haps=ecef(39.9334,32.8597,20000)
     common=g['servingCellConfigCommon'][0]
     for axis,v in zip('XYZ',haps):assert common['position%s-r17'%axis]==round(v/1.3)
-    expected={90:4099,60:4731,30:8160,10:22526}
-    samples=math.ceil(math.dist(haps,xyz)/299792458*61440000)
+    expected={90:4099,60:4730,30:8160,10:22525}
+    samples=math.floor(math.dist(haps,xyz)/299792458*61440000+0.5)
     assert samples==expected[angle]
     for data in (gnb,ue,channel):
         for model in data['hapsmod']:

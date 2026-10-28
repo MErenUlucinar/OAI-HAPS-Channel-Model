@@ -1,0 +1,104 @@
+{
+  "status": "PASS",
+  "scope": "Standalone real C sources with OAI API stubs; no modem execution",
+  "sample_rate_hz": 61440000,
+  "boundary_cases_per_mode": 9,
+  "delay_off": "PASS",
+  "iq_gain_unchanged_between_modes": true,
+  "sanitizers": true,
+  "leak_detection": false,
+  "modes": {
+    "nearest": [
+      {
+        "elevation_deg": 90,
+        "exact_samples": 4098.835601794932,
+        "applied_samples": 4099,
+        "applied_delay_us": 66.715494791667,
+        "quantization_error_ns": 2.675752035618,
+        "round_trip_quantization_error_samples": 0.328796410137,
+        "fspl_db": 129.64063480007,
+        "applied_loss_db": 0.00063480007,
+        "iq_gain": 0.999926918612
+      },
+      {
+        "elevation_deg": 60,
+        "exact_samples": 4730.467840270324,
+        "applied_samples": 4730,
+        "applied_delay_us": 76.985677083333,
+        "quantization_error_ns": -7.614587733138,
+        "round_trip_quantization_error_samples": -0.935680540648,
+        "fspl_db": 130.885506691096,
+        "applied_loss_db": 1.245506691096,
+        "iq_gain": 0.866412412385
+      },
+      {
+        "elevation_deg": 30,
+        "exact_samples": 8159.641354092417,
+        "applied_samples": 8160,
+        "applied_delay_us": 132.8125,
+        "quantization_error_ns": 5.837335735414,
+        "round_trip_quantization_error_samples": 0.717291815168,
+        "fspl_db": 135.620846211914,
+        "applied_loss_db": 5.980846211914,
+        "iq_gain": 0.502293651809
+      },
+      {
+        "elevation_deg": 10,
+        "exact_samples": 22525.09552519491,
+        "applied_samples": 22525,
+        "applied_delay_us": 366.617838541667,
+        "quantization_error_ns": -1.554772052531,
+        "round_trip_quantization_error_samples": -0.191050389815,
+        "fspl_db": 144.440757633398,
+        "applied_loss_db": 14.800757633398,
+        "iq_gain": 0.181954214073
+      }
+    ],
+    "ceil": [
+      {
+        "elevation_deg": 90,
+        "exact_samples": 4098.835601794932,
+        "applied_samples": 4099,
+        "applied_delay_us": 66.715494791667,
+        "quantization_error_ns": 2.675752035618,
+        "round_trip_quantization_error_samples": 0.328796410137,
+        "fspl_db": 129.64063480007,
+        "applied_loss_db": 0.00063480007,
+        "iq_gain": 0.999926918612
+      },
+      {
+        "elevation_deg": 60,
+        "exact_samples": 4730.467840270324,
+        "applied_samples": 4731,
+        "applied_delay_us": 77.001953125,
+        "quantization_error_ns": 8.661453933527,
+        "round_trip_quantization_error_samples": 1.064319459352,
+        "fspl_db": 130.885506691096,
+        "applied_loss_db": 1.245506691096,
+        "iq_gain": 0.866412412385
+      },
+      {
+        "elevation_deg": 30,
+        "exact_samples": 8159.641354092417,
+        "applied_samples": 8160,
+        "applied_delay_us": 132.8125,
+        "quantization_error_ns": 5.837335735414,
+        "round_trip_quantization_error_samples": 0.717291815168,
+        "fspl_db": 135.620846211914,
+        "applied_loss_db": 5.980846211914,
+        "iq_gain": 0.502293651809
+      },
+      {
+        "elevation_deg": 10,
+        "exact_samples": 22525.09552519491,
+        "applied_samples": 22526,
+        "applied_delay_us": 366.634114583333,
+        "quantization_error_ns": 14.721269614134,
+        "round_trip_quantization_error_samples": 1.808949610185,
+        "fspl_db": 144.440757633398,
+        "applied_loss_db": 14.800757633398,
+        "iq_gain": 0.181954214073
+      }
+    ]
+  }
+}

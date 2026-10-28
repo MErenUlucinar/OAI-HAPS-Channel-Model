@@ -299,13 +299,21 @@ static int haps_configure_integer_delay(
       floor_samples_double;
 
   /*
-   * Integer-only sürüm:
+   * Integer-only version.
    *
-   * OAI'nin mevcut rfsimulator.prop_delay davranışıyla
-   * aynı şekilde ceil kullanıyoruz.
+   * Round non-negative delays to nearest: N = floor(tau*Fs + 1/2).
+   * Half-sample ties round upward. The error is bounded by 1/(2 Fs)
+   * (8.14 ns at 61.44 Msps), matching the manuscript's delay rule.
+   * ceil remains available through HAPS_DELAY_ROUNDING_CEIL for
+   * comparison with the v0.1.0/v0.1.1 delay behavior.
    */
+#ifdef HAPS_DELAY_ROUNDING_CEIL
   ctx->delay.applied_integer_samples =
       (uint64_t)ceil(exact_samples);
+#else
+  ctx->delay.applied_integer_samples =
+      (uint64_t)floor(exact_samples + 0.5);
+#endif
 
   ctx->delay.applied_delay_s =
       (double)ctx->delay.applied_integer_samples /
