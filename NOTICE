@@ -1,0 +1,38 @@
+OAI-HAPS-Channel-Model — licensing scope and attribution
+
+The original HAPS module source code and author-developed integration changes
+are provided under the Collaborative Standards Software License v1.0 (CSSL),
+unless a file explicitly states otherwise. The full terms are in LICENSE.
+
+This grant also covers the original HAPS code and author-developed integration
+changes in release v0.1.2, module commit
+b9960cced8833f8601c9a6d2a7e51c39241f5681, effective 29 October 2026.
+See docs/LICENSING-v0.1.2.md for the version-specific declaration.
+The existing tag and tagged source archive are unchanged.
+
+The integration patches modify OpenAirInterface source code at upstream commit
+9313cbea82bc3c6b8ff695dd808a0cde5f431724. The affected upstream files are:
+
+  - radio/rfsimulator/simulator.cpp
+  - radio/rfsimulator/CMakeLists.txt
+  - openair1/SIMULATION/TOOLS/random_channel.c
+  - openair1/SIMULATION/TOOLS/sim.h
+  - openair2/LAYER2/NR_MAC_UE/nr_ra_procedures.c
+  - openair2/LAYER2/NR_MAC_UE/nr_ue_procedures.c
+  - openair2/LAYER2/NR_MAC_gNB/nr_radio_config.c
+
+All seven upstream files identify their license as LicenseRef-CSSL-1.0.
+Existing upstream copyright, patent, trademark and attribution notices must be
+retained when applying or redistributing the integration. The upstream NOTICE
+is reproduced verbatim in LICENSES/OAI-NOTICE.txt as attribution reference;
+the full OAI tree and every dependency named in that upstream notice are not
+bundled by this module repository.
+
+The HAPS changes cover channel processing and lifecycle, model registration
+and build integration, the UE CFRA mapping fix, the SIB1 NTN-access fix and
+receiver-measurement logging. The original copyright holders retain their
+rights; no transfer of ownership or OAI endorsement is claimed.
+
+Third-party material retains its existing terms. References to 3GPP and ITU-R
+standards do not grant rights in those standards publications. This notice is
+informational and does not amend the CSSL text.

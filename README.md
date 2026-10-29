@@ -250,9 +250,26 @@ been relabeled as v0.1.2 runs.
 
 ## License
 
-Licensing information will be provided in the repository `LICENSE` file. Any
-distribution containing or modifying OpenAirInterface source code must remain
-compatible with the applicable OAI licensing terms.
+The original HAPS module source code and author-developed integration changes
+are licensed under the Collaborative Standards Software License v1.0 (CSSL),
+unless a file explicitly states otherwise. See [LICENSE](LICENSE) for the full
+terms and [NOTICE](NOTICE) for scope and upstream attribution.
+
+The license grant also explicitly covers the original HAPS code in the already
+released **v0.1.2** snapshot at commit
+`b9960cced8833f8601c9a6d2a7e51c39241f5681`; see the
+[version-specific licensing declaration](docs/LICENSING-v0.1.2.md).
+The existing v0.1.2 tag and source archive remain unchanged.
+
+OpenAirInterface-derived code retains its applicable upstream license and
+attribution notices. The integration patches target OAI commit
+`9313cbea82bc3c6b8ff695dd808a0cde5f431724`; the seven modified upstream files
+carry `SPDX-License-Identifier: LicenseRef-CSSL-1.0`. A verbatim copy of the
+upstream NOTICE is included at [LICENSES/OAI-NOTICE.txt](LICENSES/OAI-NOTICE.txt).
+
+CSSL includes separate patent provisions for research and other uses. Existing
+third-party notices remain applicable; this statement does not relicense
+third-party material or the referenced 3GPP/ITU-R standards publications.
 
 ## Citation
 
