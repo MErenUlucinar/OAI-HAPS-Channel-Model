@@ -101,11 +101,11 @@ not a portable amplitude guarantee for other configurations.
 
 ## Validation and upstream status
 
-The v0.2.0 checks cover patch application to `9313cbe`, all manifest
+The release checks covered patch application to `9313cbe`, all manifest
 checksums, C/C++ compilation of the RFsim source files and standalone
-regressions for attenuation, TDL and delay. Full modem builds and live
-gNB–UE runs for the new features remain outside this validation coverage.
-See [the validation guide](../validation/README.md).
+regressions for attenuation, TDL and delay. Subsequent gNB–UE RFsim runs
+exercised cloud attenuation, tropospheric scintillation and NTN-TDL-D in
+coreless CFRA mode. See the [run configuration and measurements](../validation/README.md#gnbue-rfsim-cfra-measurements).
 
 The author machine previously built the **original ceil integration** and executed:
 

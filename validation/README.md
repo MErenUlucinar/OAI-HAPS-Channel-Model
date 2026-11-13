@@ -11,6 +11,7 @@ a formal 3GPP or ITU-R conformance test suite.
 | File | Purpose |
 |---|---|
 | [`reference_results.csv`](reference_results.csv) | Reference geometry, delay, propagation-loss, and link-status observations |
+| [`rfsim_cfra_v0.2.0_results.csv`](rfsim_cfra_v0.2.0_results.csv) | UL and DL measurements from the v0.2.0 gNB–UE CFRA runs |
 
 ## Reference Setup
 
@@ -140,7 +141,34 @@ UL/DL stream separation and the timestamped IQ impulse response across blocks.
 Use `--source-dir /path/to/oai/radio/rfsimulator/haps` to check the integrated
 source snapshot.
 
-The historical dataset covers static geometry, integer-sample delay and
-selected large-scale effects. The new checks are standalone regressions.
-Full gNB–UE RFsim measurements for cloud, scintillation and NTN-TDL remain
-outside the v0.2.0 validation coverage.
+## gNB–UE RFsim CFRA measurements
+
+The [v0.2.0 CFRA CSV](rfsim_cfra_v0.2.0_results.csv) contains 30 link records
+from 15 completed runs on 13 November 2026. Each run has one UL row from
+the gNB receiver and one DL row from the UE receiver. Both modems used OAI
+`9313cbea82bc3c6b8ff695dd808a0cde5f431724` and the RFsim HAPS sources from
+v0.2.0 (`b8d489e`).
+
+The modems ran as separate processes on TCP loopback in coreless `--do-ra`
+mode. All cases used SISO, 106 PRBs, 30 kHz subcarrier spacing, 61.44 Msps,
+a 20 km HAPS at 90° elevation, and HAPS seed 1. The enabled configurations
+used 0.5 kg/m² liquid water for cloud attenuation and a 100 ns RMS delay
+spread with 30 Hz maximum local Doppler for NTN-TDL-D.
+
+| Carrier | Channel effects | Completed CFRA |
+|---|---|---:|
+| n78, 3.6192 GHz | Baseline | 3/3 |
+| n78, 3.6192 GHz | Cloud, scintillation and NTN-TDL-D | 3/3 |
+| n79, 4.42002 GHz | Baseline | 3/3 |
+| n79, 4.42002 GHz | Cloud, scintillation and NTN-TDL-D | 3/3 |
+| n79, 4.42002 GHz | Cloud only | 1/1 |
+| n79, 4.42002 GHz | Scintillation only | 1/1 |
+| n79, 4.42002 GHz | NTN-TDL-D only | 1/1 |
+
+The UE synchronized, received the random access response, and reported CFRA
+completion in each included run. The gNB reported CFRA completion and
+successful PUSCH reception. The first n78 baseline launch stopped during
+host TUN setup before RFsim. A local UE build skipped that setup for the
+coreless CFRA runs, which is why the n78 baseline records begin at trial 2.
+The test covers radio access at a fixed seed. SA registration, PDU sessions,
+IP traffic and BLER were outside its scope.
