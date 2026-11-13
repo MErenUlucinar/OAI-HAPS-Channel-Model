@@ -1,6 +1,17 @@
 # Changelog
 
-## Unreleased — packaging cleanup after v0.1.2
+## v0.2.0 — 2026-11-13
+
+- Add optional ITU-R P.840-9 cloud attenuation and P.618-14 tropospheric
+  scintillation fade depth to the link budget and IQ gain.
+- Add SISO NTN-TDL-A/B/C/D with quantized excess delays, Doppler-dependent
+  Rayleigh/Ricean taps, repeatable seeds and optional C/D K-factor scaling.
+- Publish the matching RFsim integration for OAI `9313cbe` with TDL history
+  handling and standalone numerical and IQ regressions.
+- Keep cloud, scintillation and fast fading disabled by default in the
+  existing n78 examples. Document the configuration and remaining limits.
+
+### Packaging cleanup since v0.1.2
 
 - Remove six zero-byte atmosphere/cloud/scintillation `.c`/`.h` entries from
   both full integration patches; retain all 20 nonempty files unchanged.

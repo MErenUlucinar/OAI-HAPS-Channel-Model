@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <string.h>
 #include "haps_gas.h"
+#include "haps_atmosphere.h"
+#include "haps_random.h"
 #include "common/utils/LOG/log.h"
 
 #define HAPS_PI 3.14159265358979323846
@@ -213,51 +215,6 @@ static const haps_large_scale_table_t suburban_rural_sband = {
         16.30
     }
 };
-
-/*
- * Global rand()/srand() kullanmak yerine kanal context'inden
- * bağımsız, tekrar üretilebilir basit bir PRNG kullanıyoruz.
- */
-static uint32_t haps_xorshift32(uint32_t *state)
-{
-  uint32_t x = *state;
-
-  if (x == 0)
-    x = 0x6d2b79f5U;
-
-  x ^= x << 13;
-  x ^= x >> 17;
-  x ^= x << 5;
-
-  *state = x;
-  return x;
-}
-
-/*
- * Review fix (E9): SplitMix32-style seed finaliser (Murmur3 fmix32 constants).
- * Any nonzero 32-bit state is a valid xorshift32 state; mixing makes the
- * first outputs independent of the magnitude of the user seed.
- */
-static uint32_t haps_seed_mix(uint32_t seed)
-{
-  uint32_t z = seed + 0x9E3779B9U;
-  z = (z ^ (z >> 16)) * 0x85EBCA6BU;
-  z = (z ^ (z >> 13)) * 0xC2B2AE35U;
-  z ^= z >> 16;
-  return z != 0 ? z : 0x6d2b79f5U;
-}
-
-/*
- * Açık aralıkta uniform rastgele değişken:
- *
- * 0 < u < 1
- */
-static double haps_uniform_open01(uint32_t *state)
-{
-  const uint32_t value = haps_xorshift32(state);
-
-  return ((double)value + 0.5) / 4294967296.0;
-}
 
 /*
  * Box-Muller dönüşümüyle standart normal değişken:
@@ -592,20 +549,6 @@ int haps_compute_propagation(
 
   memset(result, 0, sizeof(*result));
 
-  /*
-   * Bu aşamada henüz uygulanmamış bileşenler.
-   */
-  if ( cfg->enable_cloud ||
-      cfg->enable_scintillation) {
-
-    LOG_E(
-        HW,
-        "HAPS propagation: cloud and scintillation "
-        "are not implemented yet\n");
-
-    return -2;
-  }
-
   const haps_large_scale_table_t *table =
       get_large_scale_table(cfg->scenario);
 
@@ -793,6 +736,18 @@ int haps_compute_propagation(
   }
 }
 
+  if (cfg->enable_cloud &&
+      haps_cloud_loss_db(cfg, geometry->elevation_deg, &result->cloud_loss_db) != 0) {
+    LOG_E(HW, "HAPS cloud: check liquid water column, 1–200 GHz carrier and positive elevation\n");
+    return -2;
+  }
+
+  if (cfg->enable_scintillation &&
+      haps_scintillation_loss_db(cfg, geometry->elevation_deg, &result->scintillation_loss_db) != 0) {
+    LOG_E(HW, "HAPS scintillation: check Nwet, antenna, exceedance, carrier and elevation\n");
+    return -2;
+  }
+
     result->total_loss_db =
     result->fspl_db +
     result->clutter_loss_db +
@@ -828,7 +783,7 @@ LOG_I(
     "CL=%.6f dB "
     "SF=%.6f dB "
     "BEL=%.6f dB "
-    "GAS=%.6f dB "
+    "GAS=%.6f dB CLOUD=%.6f dB SCINT=%.6f dB "
     "total=%.6f dB "
     "offset=%.6f dB "
     "applied=%.6f dB "
@@ -838,6 +793,8 @@ LOG_I(
     result->shadow_fading_db,
     result->building_entry_loss_db,
     result->gas_loss_db,
+    result->cloud_loss_db,
+    result->scintillation_loss_db,
     result->total_loss_db,
     cfg->link_budget_offset_db,
     result->applied_loss_db,

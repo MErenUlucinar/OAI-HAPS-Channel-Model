@@ -1,15 +1,15 @@
 # OAI RFsimulator HAPS Channel Model — User Guide
 
-This guide describes how to configure, run, and verify version `v0.1.0` of the
+This guide describes how to configure, run, and verify version `v0.2.0` of the
 experimental HAPS channel model for OpenAirInterface (OAI) RFsimulator.
 
 > This software is a research prototype. It is not an official 3GPP or ITU
 > conformance implementation.
 
-## 1. Scope of v0.1.0
+## 1. Scope of v0.2.0
 
 The current version models a static HAPS-to-UE radio link and applies the
-resulting large-scale channel effects to RFsimulator IQ samples.
+resulting large-scale losses and optional NTN-TDL fading to RFsimulator IQ samples.
 
 The implemented processing path is:
 
@@ -20,7 +20,7 @@ HAPS–UE geometry
         ↓
 Large-scale propagation losses
         ↓
-Integer-sample delay, IQ attenuation, and fixed Doppler
+Integer-sample delay, IQ attenuation, NTN-TDL and fixed Doppler
         ↓
 RFsimulator receive path
 ```
@@ -32,7 +32,8 @@ The release supports:
 - Free-space path loss (FSPL)
 - Forced LOS, forced NLOS, and probabilistic LOS/NLOS selection
 - 3GPP-based clutter loss and shadow fading
-- ITU-R-based building entry, atmospheric gas, and rain losses
+- ITU-R-based building entry, gas, rain, cloud and tropospheric scintillation losses
+- Optional SISO NTN-TDL-A/B/C/D fast fading
 - Integer-sample propagation delay
 - IQ amplitude attenuation
 - Optional fixed Doppler with continuous phase
@@ -43,6 +44,9 @@ and the [C1--C7 configuration fixes](CONFIGURATION_FIXES.md). The profiles targe
 OAI `9313cbea82bc3c6b8ff695dd808a0cde5f431724`; an arbitrary moving `develop`
 branch is not assumed compatible. The default is the zenith SA profile with
 propagation delay enabled, PLMN 208/99, SST 1 without SD, and DNN `oai`.
+
+See the [atmosphere and TDL guide](ATMOSPHERE_AND_TDL.md) for the new switches,
+supported frequency ranges, and an example configuration.
 
 ## 2. Prerequisites
 
@@ -67,6 +71,8 @@ specified by the release rather than an arbitrary current branch.
 | `haps_propagation.c/.h` | Selects LOS/NLOS state and computes large-scale losses |
 | `haps_gas.c/.h` | Computes oxygen and water-vapour attenuation |
 | `haps_rain.c/.h` | Computes fixed rain-layer attenuation |
+| `haps_atmosphere.c/.h` | Computes cloud attenuation and tropospheric scintillation fade depth |
+| `haps_tdl.c/.h` | Generates time-varying complex NTN-TDL taps |
 | `haps_channel.c/.h` | Connects the model to RFsimulator IQ processing |
 
 The configuration and data flow is:
@@ -78,7 +84,7 @@ haps_config_t
         ↓
 haps_geometry
         ↓
-haps_propagation / haps_gas / haps_rain
+haps_propagation / haps_gas / haps_rain / haps_atmosphere
         ↓
 haps_channel
         ↓
@@ -284,7 +290,7 @@ When all supported loss components are enabled:
 ```math
 L_{\mathrm{total}} = L_{\mathrm{FSPL}} + L_{\mathrm{clutter}}
 + L_{\mathrm{shadow}} + L_{\mathrm{BEL}} + L_{\mathrm{gas}}
-+ L_{\mathrm{rain}}
++ L_{\mathrm{rain}} + L_{\mathrm{cloud}} + L_{\mathrm{scint}}
 ```
 
 The calibrated loss and IQ amplitude gain are:
@@ -359,31 +365,16 @@ Use the following sequence for an initial verification:
 
 ## 12. Current Limitations
 
-- `1 × 1` SISO operation only
-- Static HAPS and UE geometry
-- Fixed Doppler supplied through configuration
-- Integer-sample propagation delay only
-- No fractional-delay filtering
-- No NTN-TDL fast fading
-- No delay-spread or Rice K-factor processing
-- No MIMO channel processing
-- No internal channel noise model
-- No cloud or scintillation attenuation
-- No HAPS-specific SIB19 signalling
+- SISO (one transmit and one receive antenna)
+- Static HAPS and UE geometry with a configured common Doppler shift
+- Integer-sample geometric and excess tap delays
+- Fixed 50° NTN-TDL profiles with a finite-sinusoid Doppler approximation
+- User-supplied cloud liquid-water column and fixed tropospheric scintillation fade depth
+- Fixed uniform rain layer
+- Internal noise generation and HAPS-specific SIB19 signaling outside the module scope
 
 
-## 13. Before a Public Release
-
-Before publishing `v0.1.0`, the repository should also contain:
-
-- The exact tested OAI commit or tag
-- Revision-specific integration instructions or a patch
-- A working example configuration
-- Verified build and launch commands
-- The correct license for the selected OAI base revision
-- A release tag and short changelog
-
-## 14. References
+## 13. References
 
 - 3GPP TR 38.811, *Study on New Radio (NR) to support non-terrestrial networks*
 - ITU-R P.2109-2, *Prediction of building entry loss*

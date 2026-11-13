@@ -20,6 +20,7 @@ def main():
     parser.add_argument('--source-dir', type=Path, default=ROOT/'src')
     parser.add_argument('--output', type=Path)
     parser.add_argument('--sanitize', action='store_true')
+    parser.add_argument('--atmosphere-tdl', action='store_true', help='Also run the v0.2.0 atmosphere and TDL checks')
     args = parser.parse_args()
     source = args.source_dir.resolve()
     cc = os.environ.get('CC', 'gcc')
@@ -46,7 +47,9 @@ def main():
             if args.sanitize:
                 command.extend(['-fsanitize=address,undefined', '-fno-omit-frame-pointer'])
             command.extend([str(ROOT/'validation/delay_probe.c')])
-            command.extend(str(source/name) for name in ['haps_geometry.c','haps_propagation.c','haps_gas.c','haps_rain.c'])
+            modules = ['haps_geometry.c', 'haps_propagation.c', 'haps_gas.c', 'haps_rain.c']
+            modules += [name for name in ['haps_atmosphere.c', 'haps_tdl.c'] if (source/name).is_file()]
+            command.extend(str(source/name) for name in modules)
             command.extend(['-lm', '-o', str(binary)])
             subprocess.run(command, check=True)
             environment = dict(os.environ)
@@ -56,6 +59,12 @@ def main():
                 environment['ASAN_OPTIONS'] = environment.get('ASAN_OPTIONS', '') + ':detect_leaks=0'
             output = subprocess.check_output([str(binary)], text=True, env=environment)
             results[mode] = [json.loads(line) for line in output.splitlines()]
+            if args.atmosphere_tdl and mode == 'nearest':
+                probe = command.copy()
+                probe[probe.index(str(ROOT/'validation/delay_probe.c'))] = str(ROOT/'validation/atmosphere_tdl_probe.c')
+                probe.insert(-3, str(source/'haps_channel.c'))
+                subprocess.run(probe, check=True)
+                atmosphere_tdl = subprocess.check_output([str(binary)], text=True, env=environment).splitlines()
         for nearest, ceil in zip(results['nearest'], results['ceil']):
             for field in ['elevation_deg','exact_samples','fspl_db','applied_loss_db','iq_gain']:
                 if nearest[field] != ceil[field]:
@@ -64,6 +73,8 @@ def main():
                   sample_rate_hz=61440000, boundary_cases_per_mode=9, delay_off='PASS',
                   iq_gain_unchanged_between_modes=True, sanitizers=args.sanitize,
                   leak_detection=False if args.sanitize else None, modes=results)
+    if args.atmosphere_tdl:
+        report['atmosphere_tdl'] = atmosphere_tdl
     if args.output:
         args.output.parent.mkdir(parents=True,exist_ok=True)
         args.output.write_text(json.dumps(report,indent=2)+'\n')

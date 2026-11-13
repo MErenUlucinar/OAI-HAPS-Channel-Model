@@ -28,6 +28,7 @@ typedef enum {
 } haps_terminal_type_t;
 
 typedef enum {
+  HAPS_NTN_TDL_INVALID = -1,
   HAPS_NTN_TDL_A = 0,
   HAPS_NTN_TDL_B,
   HAPS_NTN_TDL_C,
@@ -68,6 +69,12 @@ typedef struct {
   double gas_surface_water_vapour_density_g_m3;
   double gas_integrated_water_vapour_kg_m2;
 
+  double cloud_liquid_water_kg_m2;
+  double scintillation_nwet;
+  double scintillation_antenna_diameter_m;
+  double scintillation_antenna_efficiency;
+  double scintillation_exceedance_percent;
+
   haps_scenario_t scenario;
   haps_los_mode_t los_mode;
   haps_terminal_type_t terminal_type;
@@ -75,7 +82,8 @@ typedef struct {
   haps_tdl_profile_t tdl_profile;
 
   double delay_spread_s;
-  double k_factor_db;
+  double k_factor_db; /* NAN selects the tabulated profile powers. */
+  double tdl_max_doppler_hz;
 
   /*
    * OAI'nin normalize IQ seviyesi ile fiziksel link bütçesi

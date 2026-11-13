@@ -64,7 +64,7 @@ def main():
             "-I", str(ROOT / "src"), "-I", str(temporary / "stubs"),
             str(ROOT / "validation/rng_probe.c"),
             str(ROOT / "src/haps_propagation.c"), str(ROOT / "src/haps_gas.c"),
-            "-lm", "-o", str(binary),
+            str(ROOT / "src/haps_atmosphere.c"), "-lm", "-o", str(binary),
         ], check=True)
         small = probe(binary, "dense_urban", 60)
         # Independent regression datum: the package's E9 seeds 1..100 contain

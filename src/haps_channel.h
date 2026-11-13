@@ -6,6 +6,8 @@
 
 #include "openair1/SIMULATION/TOOLS/sim.h"
 #include "haps_config.h"
+#include "haps_geometry.h"
+#include "haps_propagation.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -46,6 +48,11 @@ int haps_channel_update(
     uint64_t timestamp,
     int nb_samples);
 
+/* With NTN-TDL enabled, prepend this many older IQ samples to each input block.
+ * The prefix excludes the geometric delay, which RFsim applies separately.
+ */
+unsigned haps_channel_get_history_samples(const haps_channel_ctx_t *ctx);
+
 int haps_channel_process(
     haps_channel_ctx_t *ctx,
     c16_t **input,
@@ -54,6 +61,11 @@ int haps_channel_process(
     int nb_rx,
     int nb_samples,
     uint64_t timestamp);
+
+int haps_channel_get_snapshot(
+    const haps_channel_ctx_t *ctx,
+    haps_geometry_result_t *geometry,
+    haps_propagation_result_t *propagation);
 
 void haps_channel_destroy(
     haps_channel_ctx_t *ctx);

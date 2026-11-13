@@ -5,7 +5,7 @@ OpenAirInterface (OAI) RFsimulator. The implementation combines a static
 WGS-84-based HAPS-to-UE geometry with large-scale propagation effects based on
 3GPP TR 38.811 and selected ITU-R recommendations.
 
-> **Current version:** v0.1.2 — Experimental (nearest-sample delay quantization; RNG fix retained)
+> **Current version:** v0.2.0 — Experimental (cloud, tropospheric scintillation and NTN-TDL)
 
 > This project is a research prototype. It is not an official 3GPP or ITU
 > conformance implementation.
@@ -14,7 +14,8 @@ WGS-84-based HAPS-to-UE geometry with large-scale propagation effects based on
 
 - [User Guide](docs/USER_GUIDE.md)
 - [OAI Integration Guide](integration/README.md)
-- [v0.1.2 author RFsim integration patch (OAI 9313cbe)](integration/patches/author_rfsim_v0.1.2_9313cbe.patch)
+- [v0.2.0 RFsim integration patch (OAI 9313cbe)](integration/patches/author_rfsim_v0.2.0_9313cbe.patch)
+- [Cloud, tropospheric scintillation and NTN-TDL](docs/ATMOSPHERE_AND_TDL.md)
 - [Delay quantization, legacy reproduction and tests](docs/DELAY_QUANTIZATION.md)
 - [Source Module Guide](src/README.md)
 - [Runnable configuration profiles (OAI 9313cbe)](examples/README.md)
@@ -29,7 +30,7 @@ WGS-84-based HAPS-to-UE geometry with large-scale propagation effects based on
 
 The model calculates the HAPS-to-UE link geometry and large-scale propagation
 losses, then applies the resulting amplitude gain, propagation delay, and
-optional fixed Doppler shift to the received IQ samples in OAI RFsimulator.
+optional NTN-TDL fast fading and fixed Doppler shift to the received IQ samples in OAI RFsimulator.
 
 ```text
 OAI configuration
@@ -38,7 +39,7 @@ HAPS–UE geometry
         ↓
 Large-scale propagation model
         ↓
-Delay, IQ gain, and fixed Doppler
+Delay, IQ gain, NTN-TDL, and fixed Doppler
         ↓
 OAI RFsimulator receive path
 ```
@@ -52,9 +53,9 @@ This project can be used for:
 - Reproducible HAPS-to-UE link experiments in OAI RFsimulator
 - Evaluation of elevation-dependent slant range, propagation delay, and FSPL
 - LOS/NLOS, clutter, shadow-fading, and building-entry-loss analysis
-- Atmospheric gas and fixed rain-layer attenuation studies
+- Atmospheric gas, fixed rain-layer, cloud and scintillation attenuation studies
 - IQ-level evaluation of amplitude attenuation, integer-sample delay, and fixed Doppler
-- Baseline development for future dynamic geometry, fractional delay, NTN-TDL, and MIMO extensions
+- Baseline development for future dynamic geometry, fractional delay, and MIMO extensions
 
 ## Supported Features
 
@@ -66,8 +67,9 @@ This project can be used for:
 - Free-space path loss (FSPL)
 - Forced LOS, forced NLOS, and probabilistic LOS/NLOS operation
 - 3GPP-based clutter loss and shadow fading
-- ITU-R-based building entry, atmospheric gas, and rain losses
+- ITU-R-based building entry, gas, rain, cloud, and tropospheric scintillation losses
 - IQ amplitude attenuation
+- Optional SISO NTN-TDL-A/B/C/D fast fading
 - Optional fixed Doppler with phase continuity between IQ blocks
 - Repeatable random realizations using a configurable seed
 
@@ -81,6 +83,9 @@ This project can be used for:
 | Building entry loss | ITU-R P.2109-2 |
 | Atmospheric gas attenuation | ITU-R P.676-13 |
 | Rain attenuation | ITU-R P.838-3 |
+| Cloud attenuation | ITU-R P.840-9 §3.1 |
+| Tropospheric scintillation | ITU-R P.618-14 §2.4.1 with a sub-4 GHz zero-loss approximation |
+| NTN-TDL fast fading | 3GPP TR 38.811 §6.9.2 and TR 38.901 §7.7 |
 | IQ processing and sample delay | OAI RFsimulator integration |
 
 Only the methods explicitly implemented in the source code are covered. The
@@ -95,6 +100,8 @@ project does not claim complete implementation of the referenced standards.
 | `haps_propagation.c/.h` | Computes LOS/NLOS state and large-scale propagation losses |
 | `haps_gas.c/.h` | Computes oxygen and water-vapour attenuation |
 | `haps_rain.c/.h` | Computes fixed rain-layer attenuation |
+| `haps_atmosphere.c/.h` | Computes cloud attenuation and tropospheric scintillation fade depth |
+| `haps_tdl.c/.h` | Generates time-varying complex NTN-TDL taps |
 | `haps_channel.c/.h` | Connects the model to the RFsimulator IQ processing path |
 
 The general data flow is:
@@ -106,7 +113,7 @@ haps_config_t
         ↓
 haps_geometry
         ↓
-haps_propagation / haps_gas / haps_rain
+haps_propagation / haps_gas / haps_rain / haps_atmosphere
         ↓
 haps_channel
         ↓
@@ -132,7 +139,7 @@ When all supported loss components are enabled:
 ```math
 L_{\mathrm{total}} = L_{\mathrm{FSPL}} + L_{\mathrm{clutter}}
 + L_{\mathrm{shadow}} + L_{\mathrm{BEL}} + L_{\mathrm{gas}}
-+ L_{\mathrm{rain}}
++ L_{\mathrm{rain}} + L_{\mathrm{cloud}} + L_{\mathrm{scint}}
 ```
 
 The applied loss is converted into a linear IQ amplitude gain:
@@ -145,13 +152,14 @@ G_{\mathrm{IQ}} = 10^{-L_{\mathrm{applied}}/20}
 
 The published [author integration](integration/README.md) applies to OAI commit
 `9313cbea82bc3c6b8ff695dd808a0cde5f431724`. Its self-contained patch includes
-the v0.1.2 HAPS source snapshot, `simulator.cpp` receive-path integration,
+the v0.2.0 HAPS source snapshot, `simulator.cpp` receive-path integration,
 model registration, build changes, and the CFRA/SIB1 access fixes.
 
 Follow the integration guide to create a separate OAI worktree, apply the
 patch and verify its source checksums. Then use the matched
 [configuration profiles](examples/README.md) for the selected elevation and
 experiment mode. The patch already installs its HAPS sources.
+Use the [atmosphere and TDL guide](docs/ATMOSPHERE_AND_TDL.md) to enable the new features.
 
 For configuration, log interpretation, calculations, verification, and basic
 troubleshooting, see the [User Guide](docs/USER_GUIDE.md). The integration guide
@@ -228,16 +236,13 @@ been relabeled as v0.1.2 runs.
 
 ## Current Limitations
 
-- `1 × 1` SISO operation only
-- Static HAPS and UE geometry
-- Fixed Doppler supplied through configuration
-- Integer-sample propagation delay only
-- No fractional-delay filtering
-- No NTN-TDL fast fading
-- No delay-spread or Rice K-factor processing
-- No MIMO channel processing
-- No cloud or scintillation attenuation
-- No HAPS-specific SIB19 signalling
+- SISO (one transmit and one receive antenna)
+- Static HAPS and UE geometry with a configured common Doppler shift
+- Integer-sample geometric and excess tap delays
+- Fixed 50° NTN-TDL profiles with a finite-sinusoid Doppler approximation
+- User-supplied cloud liquid-water column and fixed tropospheric scintillation fade depth
+- Fixed uniform rain layer
+- Internal noise generation and HAPS-specific SIB19 signaling outside the module scope
 
 
 ## References

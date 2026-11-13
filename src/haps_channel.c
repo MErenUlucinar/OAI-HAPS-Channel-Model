@@ -10,6 +10,7 @@
 
 #include "haps_geometry.h"
 #include "haps_propagation.h"
+#include "haps_tdl.h"
 
 #define HAPS_TWO_PI 6.28318530717958647692
 
@@ -34,6 +35,7 @@ struct haps_channel_ctx_s {
   haps_propagation_result_t propagation;
 
   haps_delay_info_t delay;
+  haps_tdl_t tdl;
 
   double doppler_hz;
   double doppler_phase_rad;
@@ -168,7 +170,7 @@ static int haps_update_rain_loss(
   return 0;
 }
 
-static int validate_first_version(
+static int validate_channel(
     const haps_config_t *cfg,
     int nb_tx,
     int nb_rx)
@@ -176,22 +178,18 @@ static int validate_first_version(
   if (nb_tx != 1 || nb_rx != 1) {
     LOG_E(
         HW,
-        "First HAPS implementation currently supports "
-        "only SISO. Tx=%d Rx=%d\n",
+        "HAPS requires one Tx and one Rx antenna. Tx=%d Rx=%d\n",
         nb_tx,
         nb_rx);
 
     return -1;
   }
 
-  if (cfg->enable_fast_fading ||
-      cfg->enable_fractional_delay ||
-      cfg->enable_noise) {
+  if (cfg->enable_fractional_delay || cfg->enable_noise) {
 
     LOG_E(
         HW,
-        "TDL/delay/Doppler/noise are not implemented "
-        "in the first HAPS FSPL version\n");
+        "HAPS fractional delay and internal noise are unsupported\n");
 
     return -1;
   }
@@ -361,7 +359,7 @@ haps_channel_ctx_t *haps_channel_create(
   if (input_cfg == NULL)
     return NULL;
 
-  if (validate_first_version(input_cfg, nb_tx, nb_rx) != 0)
+  if (validate_channel(input_cfg, nb_tx, nb_rx) != 0)
     return NULL;
 
   haps_channel_ctx_t *ctx =
@@ -385,6 +383,18 @@ haps_channel_ctx_t *haps_channel_create(
     ctx->cfg.carrier_frequency_hz =
         runtime_center_frequency_hz;
 
+  if (ctx->cfg.enable_fast_fading) {
+    if (haps_tdl_init(&ctx->tdl, &ctx->cfg, is_uplink) != 0) {
+      LOG_E(HW, "HAPS NTN-TDL: invalid profile, sample rate, delay spread, Doppler, update period or K factor\n");
+      free(ctx);
+      return NULL;
+    }
+    LOG_I(HW, "HAPS NTN-TDL CONFIG: link=%s profile=%c DS=%.3f ns max_Doppler=%.3f Hz "
+              "history=%u samples coefficient_step=%u samples\n",
+          ctx->cfg.model_name, 'A' + ctx->cfg.tdl_profile, ctx->cfg.delay_spread_s * 1e9,
+          ctx->cfg.tdl_max_doppler_hz, ctx->tdl.history_samples, ctx->tdl.step_samples);
+  }
+
    /*
  * Sabit Doppler NCO başlangıcı.
  */
@@ -396,12 +406,12 @@ ctx->doppler_hz =
 ctx->doppler_phase_rad = 0.0;
 
 if (ctx->cfg.enable_doppler) {
-  if (ctx->cfg.sample_rate_hz <= 0.0) {
+  if (!isfinite(ctx->cfg.sample_rate_hz) || ctx->cfg.sample_rate_hz <= 0.0 ||
+      !isfinite(ctx->doppler_hz)) {
     LOG_E(
         HW,
-        "HAPS Doppler requires a positive "
-        "sample rate, received %.3f\n",
-        ctx->cfg.sample_rate_hz);
+        "HAPS Doppler requires a valid sample rate and frequency shift, got %.3f and %.3f Hz\n",
+        ctx->cfg.sample_rate_hz, ctx->doppler_hz);
 
     free(ctx);
     return NULL;
@@ -415,32 +425,6 @@ if (ctx->cfg.enable_doppler) {
   ctx->doppler_phase_increment_rad = 0.0;
 }
 
-LOG_I(
-    HW,
-    "HAPS DOPPLER CONFIG: "
-    "link=%s enabled=%d "
-    "HAPS=(lat=%.6f lon=%.6f alt=%.1f m) "
-    "UE=(lat=%.6f lon=%.6f alt=%.1f m) "
-    "slant=%.3f km "
-    "elevation=%.2f deg "
-    "fD=%.2f Hz fs=%.6f Msps "
-    "phase_step=%+.9e rad/sample "
-    "phase_change_1ms=%+.6f rad\n",
-    ctx->cfg.model_name,
-    ctx->cfg.haps_latitude_deg,
-    ctx->cfg.haps_longitude_deg,
-    ctx->cfg.haps_altitude_m,
-    ctx->cfg.ue_latitude_deg,
-    ctx->cfg.ue_longitude_deg,
-    ctx->cfg.ue_altitude_m,
-    ctx->geometry.slant_range_m / 1000.0,
-    ctx->geometry.elevation_deg,
-    ctx->cfg.enable_doppler,
-    ctx->doppler_hz,
-    ctx->cfg.sample_rate_hz / 1.0e6,
-    ctx->doppler_phase_increment_rad,
-    HAPS_TWO_PI * ctx->doppler_hz * 0.001);
-
   if (haps_compute_geometry(
           &ctx->cfg,
           &ctx->geometry) != 0) {
@@ -449,6 +433,33 @@ LOG_I(
     free(ctx);
     return NULL;
   }
+
+LOG_I(
+    HW,
+    "HAPS DOPPLER CONFIG: "
+    "link=%s direction=%s enabled=%d "
+    "HAPS=(lat=%.6f lon=%.6f alt=%.1f m) "
+    "UE=(lat=%.6f lon=%.6f alt=%.1f m) "
+    "slant=%.3f km "
+    "elevation=%.2f deg "
+    "fD=%.2f Hz fs=%.6f Msps "
+    "phase_step=%+.9e rad/sample "
+    "phase_change_1ms=%+.6f rad\n",
+    ctx->cfg.model_name,
+    ctx->is_uplink ? "UL" : "DL",
+    ctx->cfg.enable_doppler,
+    ctx->cfg.haps_latitude_deg,
+    ctx->cfg.haps_longitude_deg,
+    ctx->cfg.haps_altitude_m,
+    ctx->cfg.ue_latitude_deg,
+    ctx->cfg.ue_longitude_deg,
+    ctx->cfg.ue_altitude_m,
+    ctx->geometry.slant_range_m / 1000.0,
+    ctx->geometry.elevation_deg,
+    ctx->doppler_hz,
+    ctx->cfg.sample_rate_hz / 1.0e6,
+    ctx->doppler_phase_increment_rad,
+    HAPS_TWO_PI * ctx->doppler_hz * 0.001);
 
 const int delay_result =
     haps_configure_integer_delay(ctx);
@@ -595,119 +606,66 @@ int haps_channel_process(
   if (nb_tx != 1 || nb_rx != 1)
     return -1;
 
-  const double gain =
-    ctx->propagation.linear_amplitude_gain;
+  if (input[0] == NULL || output[0] == NULL || timestamp > UINT64_MAX - (uint64_t)nb_samples)
+    return -1;
 
-const bool apply_doppler =
-    ctx->cfg.enable_doppler &&
-    fabs(ctx->doppler_hz) > 1.0e-12;
-
-if (!apply_doppler) {
-  /*
-   * Doppler kapalı veya 0 Hz:
-   * Mevcut identity/propagation yolu.
-   */
-  for (int n = 0; n < nb_samples; ++n) {
-    const double input_real =
-        (double)input[0][n].r;
-
-    const double input_imag =
-        (double)input[0][n].i;
-
-    output[0][n].r +=
-        (float)(input_real * gain);
-
-    output[0][n].i +=
-        (float)(input_imag * gain);
+  const double gain = ctx->propagation.linear_amplitude_gain;
+  const bool apply_doppler = ctx->cfg.enable_doppler && fabs(ctx->doppler_hz) > 1.0e-12;
+  double oscillator_real = 1;
+  double oscillator_imag = 0;
+  double step_real = 1;
+  double step_imag = 0;
+  if (apply_doppler) {
+    /* With TDL, use the sample clock for both Doppler terms, even after gaps. */
+    double phase = ctx->doppler_phase_rad;
+    if (ctx->cfg.enable_fast_fading) {
+      const long double cycles = (long double)timestamp * (ctx->doppler_hz / ctx->cfg.sample_rate_hz);
+      phase = HAPS_TWO_PI * (double)fmodl(cycles, 1);
+    }
+    oscillator_real = cos(phase);
+    oscillator_imag = sin(phase);
+    step_real = cos(ctx->doppler_phase_increment_rad);
+    step_imag = sin(ctx->doppler_phase_increment_rad);
   }
 
-} else {
-  /*
-   * Sayısal kontrollü osilatör:
-   *
-   * y[n] = gain * x[n] * exp(j * phase[n])
-   *
-   * Her örnekte sin/cos hesaplamak yerine kompleks
-   * osilatör rekürsif olarak güncellenir.
-   */
-  double oscillator_real =
-      cos(ctx->doppler_phase_rad);
-
-  double oscillator_imag =
-      sin(ctx->doppler_phase_rad);
-
-  const double step_real =
-      cos(ctx->doppler_phase_increment_rad);
-
-  const double step_imag =
-      sin(ctx->doppler_phase_increment_rad);
-
   for (int n = 0; n < nb_samples; ++n) {
-    const double input_real =
-        (double)input[0][n].r;
+    double real;
+    double imag;
+    if (ctx->cfg.enable_fast_fading) {
+      haps_complex_t taps[HAPS_TDL_MAX_PATHS];
+      haps_tdl_coefficients(&ctx->tdl, timestamp + (uint64_t)n, taps);
+      const size_t index = (size_t)ctx->tdl.history_samples + n;
+      real = 0;
+      imag = 0;
+      for (unsigned tap = 0; tap < ctx->tdl.path_count; ++tap) {
+        const c16_t sample = input[0][index - ctx->tdl.paths[tap].delay_samples];
+        real += sample.r * taps[tap].r - sample.i * taps[tap].i;
+        imag += sample.r * taps[tap].i + sample.i * taps[tap].r;
+      }
+    } else {
+      real = input[0][n].r;
+      imag = input[0][n].i;
+    }
 
-    const double input_imag =
-        (double)input[0][n].i;
-
-    /*
-     * Kompleks faz dönüşümü:
-     *
-     * (I + jQ)(cos(phi) + j sin(phi))
-     */
-    const double rotated_real =
-        input_real * oscillator_real -
-        input_imag * oscillator_imag;
-
-    const double rotated_imag =
-        input_real * oscillator_imag +
-        input_imag * oscillator_real;
-
-    output[0][n].r +=
-        (float)(rotated_real * gain);
-
-    output[0][n].i +=
-        (float)(rotated_imag * gain);
-
-    /*
-     * Osilatörü bir sonraki örneğe ilerlet.
-     */
-    const double next_real =
-        oscillator_real * step_real -
-        oscillator_imag * step_imag;
-
-    const double next_imag =
-        oscillator_imag * step_real +
-        oscillator_real * step_imag;
-
-    oscillator_real = next_real;
-    oscillator_imag = next_imag;
-
-    /*
-     * Yuvarlama hatasının genliği zamanla bozmasını
-     * önlemek için periyodik normalizasyon.
-     */
-    if ((n & 1023) == 1023) {
-      const double magnitude =
-          hypot(oscillator_real,
-                oscillator_imag);
-
-      if (magnitude > 0.0) {
+    if (apply_doppler) {
+      const double rotated_real = real * oscillator_real - imag * oscillator_imag;
+      imag = real * oscillator_imag + imag * oscillator_real;
+      real = rotated_real;
+      const double next_real = oscillator_real * step_real - oscillator_imag * step_imag;
+      oscillator_imag = oscillator_real * step_imag + oscillator_imag * step_real;
+      oscillator_real = next_real;
+      if ((n & 1023) == 1023) {
+        const double magnitude = hypot(oscillator_real, oscillator_imag);
         oscillator_real /= magnitude;
         oscillator_imag /= magnitude;
       }
     }
-  }
 
-  /*
-   * Bir sonraki RFsimulator bloğu, son fazın kaldığı
-   * yerden devam eder. Böylece blok sınırlarında
-   * faz sıçraması oluşmaz.
-   */
-  ctx->doppler_phase_rad =
-      haps_wrap_phase_rad(
-          atan2(oscillator_imag,
-                oscillator_real));
-}
+    output[0][n].r += (float)(real * gain);
+    output[0][n].i += (float)(imag * gain);
+  }
+  if (apply_doppler)
+    ctx->doppler_phase_rad = haps_wrap_phase_rad(atan2(oscillator_imag, oscillator_real));
 
   haps_channel_update(
       ctx,
@@ -742,7 +700,7 @@ if (!apply_doppler) {
     "SF=%.2f dB "
     "BEL=%.2f dB "
     "GAS=%.6f dB "
-    "RAIN=%.6f dB "
+    "RAIN=%.6f dB CLOUD=%.6f dB SCINT=%.6f dB "
     "total_loss=%.6f dB "
     "applied_loss=%.6f dB "
     "Doppler=%+.2f Hz "
@@ -763,6 +721,8 @@ if (!apply_doppler) {
     ctx->propagation.building_entry_loss_db,
     ctx->propagation.gas_loss_db,
     ctx->propagation.rain_loss_db,
+    ctx->propagation.cloud_loss_db,
+    ctx->propagation.scintillation_loss_db,
     ctx->propagation.total_loss_db,
     ctx->propagation.applied_loss_db,
     ctx->doppler_hz,
@@ -826,6 +786,11 @@ if (!apply_doppler) {
   return 0;
 }
 
+unsigned haps_channel_get_history_samples(const haps_channel_ctx_t *ctx)
+{
+  return ctx != NULL ? ctx->tdl.history_samples : 0;
+}
+
 int haps_channel_get_delay_info(
     const haps_channel_ctx_t *ctx,
     haps_delay_info_t *info)
@@ -840,6 +805,18 @@ int haps_channel_get_delay_info(
   return 0;
 }
 
+
+int haps_channel_get_snapshot(
+    const haps_channel_ctx_t *ctx,
+    haps_geometry_result_t *geometry,
+    haps_propagation_result_t *propagation)
+{
+  if (ctx == NULL || geometry == NULL || propagation == NULL)
+    return -1;
+  *geometry = ctx->geometry;
+  *propagation = ctx->propagation;
+  return 0;
+}
 
 void haps_channel_destroy(
     haps_channel_ctx_t *ctx)

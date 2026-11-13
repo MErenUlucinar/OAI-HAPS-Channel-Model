@@ -1,0 +1,53 @@
+{
+  "module_version": "v0.2.0",
+  "oai_repository": "https://github.com/duranta-project/openairinterface5g",
+  "oai_commit": "9313cbea82bc3c6b8ff695dd808a0cde5f431724",
+  "author_source_commit": "699a5453a0713b0978944e583357a7b1b6056591",
+  "scope": "v0.1.2 RFsim integration plus P.840-9 cloud loss, P.618-14 tropospheric scintillation, and SISO NTN-TDL A–D",
+  "patch": "author_rfsim_v0.2.0_9313cbe.patch",
+  "upstream_preimage_git_blobs": {
+    "radio/rfsimulator/simulator.cpp": "4a381f07fef0f55178dfb691a011da417eaf1fda",
+    "radio/rfsimulator/CMakeLists.txt": "5a650452d6543de69e31a5a9451ae754674cb028",
+    "openair1/SIMULATION/TOOLS/random_channel.c": "daf9c4c52f527e18d579357c7c0ef44957d32535",
+    "openair1/SIMULATION/TOOLS/sim.h": "1d4e45a238a83d1917e99e52fab2b68cee51a5ec",
+    "openair2/LAYER2/NR_MAC_gNB/nr_radio_config.c": "f39708e2c201016559721ac23c13980939bcae25",
+    "openair2/LAYER2/NR_MAC_UE/nr_ue_procedures.c": "9112df838cc6aee4767fbf50ce4ad3d1d5bc49d1",
+    "openair2/LAYER2/NR_MAC_UE/nr_ra_procedures.c": "9d26e58fb68bf4a8cd12b4e8d00a7517f4710eba"
+  },
+  "files_sha256": {
+    "openair1/SIMULATION/TOOLS/random_channel.c": "e09c4aadf18100c586c0ac7e5ae47a9f5c978b9b4de296f0704667f5c6657c8d",
+    "openair1/SIMULATION/TOOLS/sim.h": "4caba0066c61abdc2cc9cd8e2142f9584f0023c7726ed4bb2c32937913636cbd",
+    "openair2/LAYER2/NR_MAC_UE/nr_ra_procedures.c": "1a133cece72b7d008034e96424f10e2d27628d339be5377709a4bb2f7a6da029",
+    "openair2/LAYER2/NR_MAC_UE/nr_ue_procedures.c": "8511c9227e312c5444a3b19dc7120b21229557a4c0f59eebbf17c85dd9ed3300",
+    "openair2/LAYER2/NR_MAC_gNB/nr_radio_config.c": "e61d0f9c48be25e232f01d6c3c1965d28933b5571169aa3a04f689a8bbcf8d51",
+    "radio/rfsimulator/CMakeLists.txt": "394ea2b3cd15716391cb0eab52f78c3f40ea074c1d15cf6d8219e85161f8a782",
+    "radio/rfsimulator/haps/haps_atmosphere.c": "8197615c843170cc7d43b59a4a97b18c9636491fef15f0b2a5331d872e0aaca5",
+    "radio/rfsimulator/haps/haps_atmosphere.h": "8991ac3f39c185e7ffe07277d8394a3ec96a0c9909b180d677e44e96dff85a53",
+    "radio/rfsimulator/haps/haps_channel.c": "091845c596cc3de2cb01c03582effb45bfb6aa820c455f0ec1288642e56ab6ca",
+    "radio/rfsimulator/haps/haps_channel.h": "14e5a507417f91784b08f7f43c5c533a036c1781c141b1f93c85df1e989b6867",
+    "radio/rfsimulator/haps/haps_config.c": "c02b66ce57bbc0b54550a124a4a5ac31f3b7f5730e8c306ac8ad2649d51bb94e",
+    "radio/rfsimulator/haps/haps_config.h": "2999677edbe8794c5db5bf5316222f3ff14cf4771c853c2a13fbbb6d44a802e2",
+    "radio/rfsimulator/haps/haps_gas.c": "16c4bfa5c3c59978c6f044d909aafb1e45df9f47e55b84d67239bf949c0a6a28",
+    "radio/rfsimulator/haps/haps_gas.h": "8c057995d346fe7f69b05129e1ecbe728de65e923549cee8261cb5f19b657c01",
+    "radio/rfsimulator/haps/haps_geometry.c": "f7532d8599e59230fb0f1bef675e7b4e308ab547cf8d852d3b2b1d9db0d15efc",
+    "radio/rfsimulator/haps/haps_geometry.h": "b50a59462e8ae2473dc57cf2fffb1b93041457fa4a2281561258c65e555b0493",
+    "radio/rfsimulator/haps/haps_propagation.c": "e3f741e806a8e21aa96ad3bd0e91d58a9d109503410708f5f33b71a2fd12f034",
+    "radio/rfsimulator/haps/haps_propagation.h": "fd9f59e242ab30bbb13cff36baf582a936225a05f8e9f7f98acd44c03b48ea8a",
+    "radio/rfsimulator/haps/haps_rain.c": "9fa37d61739657349aad57d7ce82936c3ce169db35f1b0ea60087241edb1bf45",
+    "radio/rfsimulator/haps/haps_rain.h": "3d2b8488aaa816fb94aa9a00e7275a56e703649822ecdd6bb9901674d0914a5e",
+    "radio/rfsimulator/haps/haps_random.h": "718e5dbb86c884a6e46070bb58e83e289148a26fdff2853d170ab0d91b58fb9d",
+    "radio/rfsimulator/haps/haps_tdl.c": "52920e7a2aa9789bacf90b460aef4dd248935a89d2000c6ae2ddc21f1ef98e08",
+    "radio/rfsimulator/haps/haps_tdl.h": "385b1c31d5d52f87ebe406d0f36fe46571eb8906fb41cc67e8f31c656e19ba4a",
+    "radio/rfsimulator/haps/test_haps_rain.c": "6d536366a3e83db0fdac17e1de1c0a95639924b5f3e2f2af777922e5042b5b0a",
+    "radio/rfsimulator/simulator.cpp": "9c20f765722daa391917bcc1e1815296e7aaa6e5650a5d8b9ff7cd5fbbc1b145"
+  },
+  "absent_files": [
+    "radio/rfsimulator/haps/haps_cloud.c",
+    "radio/rfsimulator/haps/haps_cloud.h",
+    "radio/rfsimulator/haps/haps_scintillation.c",
+    "radio/rfsimulator/haps/haps_scintillation.h"
+  ],
+  "delay_quantization": "floor(tau*Fs + 0.5), non-negative half-sample ties upward; legacy ceil optional via HAPS_DELAY_ROUNDING_CEIL",
+  "validation": "Pinned patch application and source identity, C regressions and RFsim source compilation. Full modem runs were not performed.",
+  "patch_sha256": "ec3bda5928cb84c3b9eb4c55a20153af6c624031b698a8828c3f4b7e91546692"
+}

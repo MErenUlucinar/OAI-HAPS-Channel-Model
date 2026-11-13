@@ -130,10 +130,17 @@ When adding a validation row:
 7. Add a short note when the row needs interpretation or has a special test
    condition.
 
-## Scope and Limitations
+## Atmosphere and NTN-TDL validation
 
-The current validation data covers static geometry, integer-sample delay, and
-selected large-scale propagation effects. It does not validate fractional
-delay, dynamic geometry, geometric Doppler, NTN-TDL fast fading, MIMO, cloud
-attenuation, scintillation, or HAPS-specific SIB19 signaling.
+Run `python3 validation/test_delay.py --atmosphere-tdl --sanitize` to check the
+v0.2.0 C module with OAI type and log stubs. The probe checks cloud and
+scintillation reference values, n78 scintillation behavior, invalid inputs,
+loss-to-IQ gain, all four TDL delay profiles, K-factor scaling, seeded replay,
+UL/DL stream separation and the timestamped IQ impulse response across blocks.
+Use `--source-dir /path/to/oai/radio/rfsimulator/haps` to check the integrated
+source snapshot.
 
+The historical dataset covers static geometry, integer-sample delay and
+selected large-scale effects. The new checks are standalone regressions.
+Full gNB–UE RFsim measurements for cloud, scintillation and NTN-TDL remain
+outside the v0.2.0 validation coverage.

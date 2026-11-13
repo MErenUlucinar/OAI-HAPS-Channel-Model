@@ -1,25 +1,15 @@
 # Author integration for OAI RFsimulator
 
-The default, self-contained [v0.1.2 author integration patch](patches/author_rfsim_v0.1.2_9313cbe.patch)
-includes the `simulator.cpp` connection and nearest-sample HAPS delay quantization.
-A cleaned ceil comparison preserves the nonempty sources of the original
-author E8/E9/SA integration. Exact historical artifacts remain in commit history. Both target this exact OAI revision:
+The self-contained [v0.2.0 RFsim integration patch](patches/author_rfsim_v0.2.0_9313cbe.patch)
+installs the HAPS channel with optional cloud attenuation, tropospheric
+scintillation, and SISO NTN-TDL fast fading.
 
 | Item | Value |
 |---|---|
 | OAI repository | [duranta-project/openairinterface5g](https://github.com/duranta-project/openairinterface5g) |
 | OAI base commit | `9313cbea82bc3c6b8ff695dd808a0cde5f431724` |
 | Original author checkout | `699a5453a0713b0978944e583357a7b1b6056591` |
-| Patch | `patches/author_rfsim_v0.1.2_9313cbe.patch` |
-| Patch SHA-256 | `acc2ede2a0343aa0b6ea1bc016f5eb95a5fcd88afeda914582087f19b4790967` |
-| Recorded output files | 20; see [manifest.json](patches/manifest.json) |
-
-The `699a5453` value identifies the source checkout from which the author's
-integration was exported. Apply the published patch to **`9313cbe`**.
-The file is the author's ported integration with the v0.1.2 rounding update.
-Among the 20 nonempty source files, only `haps_channel.c` differs from the ceil
-comparison. Six zero-byte file creations have been removed from both patches.
-The exact original artifacts remain available through the historical links below.
+| Patch and source checksums | [v0.2.0 manifest](patches/manifest.v0.2.0.json) |
 
 ## Apply to a separate worktree
 
@@ -40,21 +30,19 @@ git -C "$haps_oai_source" worktree add --detach "$haps_oai_tree" \
   9313cbea82bc3c6b8ff695dd808a0cde5f431724
 
 git -C "$haps_oai_tree" apply --check --whitespace=nowarn \
-  "$haps_module_dir/integration/patches/author_rfsim_v0.1.2_9313cbe.patch"
+  "$haps_module_dir/integration/patches/author_rfsim_v0.2.0_9313cbe.patch"
 
 git -C "$haps_oai_tree" apply --whitespace=nowarn \
-  "$haps_module_dir/integration/patches/author_rfsim_v0.1.2_9313cbe.patch"
+  "$haps_module_dir/integration/patches/author_rfsim_v0.2.0_9313cbe.patch"
 
-python3 "$haps_module_dir/integration/verify_snapshot.py" --oai "$haps_oai_tree"
+python3 "$haps_module_dir/integration/verify_snapshot.py" --oai "$haps_oai_tree" \
+  --manifest "$haps_module_dir/integration/patches/manifest.v0.2.0.json"
 ```
 
-The complete patch installs its own `radio/rfsimulator/haps/` files. Use that
-embedded v0.1.2 snapshot for new nearest-mode work; copying another `src/`
-version over it changes the source identity. Use the ceil comparison below for the original nonempty sources, or select
-the historical artifact for exact reproduction of the former 26-file tree. The patch preserves historical
-formatting, so `--whitespace=nowarn` replays it without reformatting its code.
-The verifier checks the patch digest, the pinned OAI HEAD and all 20 recorded
-output files and checks that the six excluded paths are absent. It does not build or execute OAI.
+The patch installs the HAPS sources and changes to the pinned OAI tree.
+The verifier checks the patch digest, pinned OAI HEAD, 25 recorded files
+and four excluded zero-byte placeholders. See the historical section below
+for the earlier snapshots.
 
 ## Build and configure
 
@@ -72,9 +60,7 @@ cmake --build "$haps_oai_tree/cmake_targets/ran_build/build" \
 
 The three outputs are `librfsimulator.so`, `nr-softmodem` and
 `nr-uesoftmodem` in that build directory. Build flags, compiler and dependencies
-can change binary hashes even when source hashes match. This build recipe
-is provided for reconstruction; no additional full build was performed for
-this publication.
+can change binary hashes even when source hashes match. This build recipe reconstructs the full modem binaries.
 
 Use the [matched configuration profiles](../examples/README.md) for the
 selected elevation and experiment mode. They include the current UE
@@ -85,22 +71,24 @@ for ordinary SA; the profile generator documents the coreless E9 mode.
 Open5GS, subscriber provisioning and UE network isolation for traffic
 measurements are separate runtime setup steps.
 
+Use the [atmosphere and TDL guide](../docs/ATMOSPHERE_AND_TDL.md) to enable the new effects.
+
 ## What the patch contains
 
 | Area | Contents |
 |---|---|
-| `radio/rfsimulator/simulator.cpp` | HAPS context lifecycle, runtime frequency/sample-rate binding, SISO receive-path processing, delayed history reads and startup zero IQ |
-| `radio/rfsimulator/CMakeLists.txt` | The six implemented HAPS C modules in the RFsimulator build |
-| `radio/rfsimulator/haps/` | 13 author files: six C modules with their headers and a rain probe; includes the RNG mix/eight-output warm-up |
+| `radio/rfsimulator/simulator.cpp` | HAPS context lifecycle, runtime frequency/sample-rate binding, SISO receive-path processing, geometric delay, TDL packet history and startup zero padding |
+| `radio/rfsimulator/CMakeLists.txt` | The eight implemented HAPS C modules in the RFsimulator build |
+| `radio/rfsimulator/haps/` | 18 files including cloud/scintillation, NTN-TDL, the shared RNG and the rain probe |
 | `openair1/SIMULATION/TOOLS/{sim.h,random_channel.c}` | Channel-model registration for HAPS and the existing BASIC_STATIC/TWO_TAP_RAYLEIGH controls |
 | `openair2/LAYER2/NR_MAC_UE/nr_ra_procedures.c` | Common SSB/RO assignment on the four-step CFRA path |
 | `openair2/LAYER2/NR_MAC_gNB/nr_radio_config.c` | NTN access indication in SIB1 when NTN configuration is present |
 | `openair2/LAYER2/NR_MAC_UE/nr_ue_procedures.c` | L1 SSB measurement logging used by the author runs |
 
-The SISO HAPS branch processes each link once. For integer delay, RFsimulator
-reads input history at `timestamp - channel_offset`; insufficient startup
-history produces zero IQ. PSS/SSS detection code is inherited from the pinned
-OAI base. The RFsimulator build uses the six implemented HAPS C modules listed above.
+The SISO HAPS branch reads from `timestamp - channel_offset` and retains
+the additional samples needed by the longest TDL tap. The receive window is
+zero-padded where the requested source timestamp precedes sample zero.
+PSS/SSS detection comes from the pinned OAI base.
 
 Default delay quantization uses `floor(sample_rate * geometric_delay + 0.5)`
 with non-negative half ties upward: 4099/4730/8160/22525 samples at
@@ -113,17 +101,11 @@ not a portable amplitude guarantee for other configurations.
 
 ## Validation and upstream status
 
-Publication checks applied the v0.1.2 patch to a fresh full checkout of
-`9313cbe`, verified seven modified upstream pre-image Git blobs, and matched
-all 20 post-image SHA-256 values in [the manifest](patches/manifest.json).
-Earlier standalone checks exercised the six real HAPS C sources and the
-RFsim bridge branch with narrow OAI API stubs. They do not replace a full
-modem build or network experiment.
-
-Standalone regression checks also compile the actual module and embedded
-channel sources in nearest and legacy modes, exercising rounding boundaries,
-four geometry profiles and unchanged I/Q gain. Address/undefined-behavior
-sanitizers passed with leak detection disabled for the hosted runner.
+The v0.2.0 checks cover patch application to `9313cbe`, all manifest
+checksums, C/C++ compilation of the RFsim source files and standalone
+regressions for attenuation, TDL and delay. Full modem builds and live
+gNB–UE runs for the new features remain outside this validation coverage.
+See [the validation guide](../validation/README.md).
 
 The author machine previously built the **original ceil integration** and executed:
 
@@ -149,7 +131,13 @@ Both fixes are already included in this pinned integration. Their upstream
 submission is separate from acceptance/merge. The published snapshot targets
 `9313cbe`; it is not a claim that the patch applies to a later `develop`.
 
-## Ceil comparison and exact historical artifacts
+## Historical integration snapshots
+
+The [v0.1.2 nearest-delay patch](patches/author_rfsim_v0.1.2_9313cbe.patch)
+and [v0.1.2 manifest](patches/manifest.json) reconstruct the 20-file baseline.
+Run the verifier with that manifest for v0.1.2.
+
+### Ceil comparison and exact historical artifacts
 
 The [cleaned ceil comparison patch](patches/author_rfsim_9313cbe.patch),
 SHA-256 `56f502bc3502cbfe0e89ea3f23521ab183e750c28dd07725b8d5dd5cd8d8b8e0`,
@@ -173,7 +161,13 @@ The published v0.1.2 tag also remains unchanged; this main-branch packaging
 cleanup does not move tags or rewrite prior experiment records. The v0.1.1
 tag predates publication of the full integration.
 
-## Upgrade an existing integration
+## Upgrade to v0.2.0
+
+Apply the full v0.2.0 patch in a fresh worktree at the pinned OAI commit,
+then rebuild RFsim and use the desired `hapsmod` flags. This preserves the
+experiment tree and its configuration for comparison.
+
+### Maintenance patches for older integrations
 
 If an older integration has the six zero-byte files, the
 [removal-only patch](patches/remove_empty_placeholders.patch) deletes them:

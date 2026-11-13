@@ -71,7 +71,10 @@ static haps_tdl_profile_t parse_tdl_profile(const char *value)
   if (strcasecmp(value, "NTN-TDL-C") == 0)
     return HAPS_NTN_TDL_C;
 
-  return HAPS_NTN_TDL_D;
+  if (strcasecmp(value, "NTN-TDL-D") == 0)
+    return HAPS_NTN_TDL_D;
+
+  return HAPS_NTN_TDL_INVALID;
 }
 
 void haps_config_set_defaults(haps_config_t *cfg)
@@ -99,7 +102,14 @@ void haps_config_set_defaults(haps_config_t *cfg)
   cfg->tdl_profile = HAPS_NTN_TDL_D;
 
   cfg->delay_spread_s = 100.0e-9;
-  cfg->k_factor_db = 11.707;
+  cfg->k_factor_db = NAN;
+  cfg->tdl_max_doppler_hz = 30.0;
+
+  cfg->cloud_liquid_water_kg_m2 = 0.0;
+  cfg->scintillation_nwet = 50.0;
+  cfg->scintillation_antenna_diameter_m = 0.3;
+  cfg->scintillation_antenna_efficiency = 0.5;
+  cfg->scintillation_exceedance_percent = 1.0;
 
   /*
    * İlk test identity kanal olsun.
@@ -202,8 +212,22 @@ int haps_load_config(
       {"delay_spread_s", "Delay spread in seconds", 0,
        .dblptr = NULL, .defdblval = 100.0e-9, TYPE_DOUBLE, 0},
 
-      {"k_factor_db", "Rice K factor in dB", 0,
-       .dblptr = NULL, .defdblval = 11.707, TYPE_DOUBLE, 0},
+      {"k_factor_db", "Specular to total diffuse power ratio in dB; omit for table values", 0,
+       .dblptr = NULL, .defdblval = NAN, TYPE_DOUBLE, 0},
+
+      {"tdl_max_doppler_hz", "Maximum local scattering Doppler in Hz", 0,
+       .dblptr = NULL, .defdblval = 30.0, TYPE_DOUBLE, 0},
+
+      {"cloud_liquid_water_kg_m2", "Vertical cloud liquid water column in kg/m2", 0,
+       .dblptr = NULL, .defdblval = 0.0, TYPE_DOUBLE, 0},
+      {"scintillation_nwet", "Wet surface refractivity in N-units", 0,
+       .dblptr = NULL, .defdblval = 50.0, TYPE_DOUBLE, 0},
+      {"scintillation_antenna_diameter_m", "Ground antenna diameter in m", 0,
+       .dblptr = NULL, .defdblval = 0.3, TYPE_DOUBLE, 0},
+      {"scintillation_antenna_efficiency", "Ground antenna aperture efficiency", 0,
+       .dblptr = NULL, .defdblval = 0.5, TYPE_DOUBLE, 0},
+      {"scintillation_exceedance_percent", "Scintillation exceedance time percentage", 0,
+       .dblptr = NULL, .defdblval = 1.0, TYPE_DOUBLE, 0},
 
       {"link_budget_offset_db", "RFsim IQ calibration offset", 0,
        .dblptr = NULL, .defdblval = 0.0, TYPE_DOUBLE, 0},
@@ -255,15 +279,6 @@ int haps_load_config(
        .defdblval = 1013.25,
        TYPE_DOUBLE,
        0},
-
-
-      {"gas_surface_pressure_hpa",
- "ITU-R P.676 surface pressure in hPa",
- 0,
- .dblptr = NULL,
- .defdblval = 1013.25,
- TYPE_DOUBLE,
- 0},
 
 {"gas_surface_temperature_k",
  "ITU-R P.676 surface temperature in K",
@@ -385,6 +400,12 @@ int haps_load_config(
 
   const int idx_ds = PARAM_INDEX("delay_spread_s");
   const int idx_k = PARAM_INDEX("k_factor_db");
+  const int idx_tdl_max_doppler = PARAM_INDEX("tdl_max_doppler_hz");
+  const int idx_cloud_water = PARAM_INDEX("cloud_liquid_water_kg_m2");
+  const int idx_scint_nwet = PARAM_INDEX("scintillation_nwet");
+  const int idx_scint_diameter = PARAM_INDEX("scintillation_antenna_diameter_m");
+  const int idx_scint_efficiency = PARAM_INDEX("scintillation_antenna_efficiency");
+  const int idx_scint_exceedance = PARAM_INDEX("scintillation_exceedance_percent");
   const int idx_cal = PARAM_INDEX("link_budget_offset_db");
   const int idx_fixed_doppler = PARAM_INDEX("fixed_doppler_hz");
 
@@ -498,6 +519,12 @@ const int idx_gas_integrated_water =
 
     cfg->k_factor_db =
         *(haps_list.paramarray[i][idx_k].dblptr);
+    cfg->tdl_max_doppler_hz = *haps_list.paramarray[i][idx_tdl_max_doppler].dblptr;
+    cfg->cloud_liquid_water_kg_m2 = *haps_list.paramarray[i][idx_cloud_water].dblptr;
+    cfg->scintillation_nwet = *haps_list.paramarray[i][idx_scint_nwet].dblptr;
+    cfg->scintillation_antenna_diameter_m = *haps_list.paramarray[i][idx_scint_diameter].dblptr;
+    cfg->scintillation_antenna_efficiency = *haps_list.paramarray[i][idx_scint_efficiency].dblptr;
+    cfg->scintillation_exceedance_percent = *haps_list.paramarray[i][idx_scint_exceedance].dblptr;
 
     cfg->link_budget_offset_db =
         *(haps_list.paramarray[i][idx_cal].dblptr);

@@ -62,6 +62,10 @@ The existing `...rfsim.delay-on.conf` and `ue.haps.conf` names are matching
 zenith aliases. Pair `...rfsim.delay-off.conf` with **`ue.haps.delay-off.conf`**;
 both include the delay-off channel. No manual toggle of a shared file is needed.
 
+For optional v0.2.0 cloud, scintillation and NTN-TDL settings, see the
+[configuration example](../docs/ATMOSPHERE_AND_TDL.md). The distributed
+n78 profiles default to disabled for all three effects.
+
 ## Generate private configurations
 
 From the module repository root, for nominal SA at 60 degrees:
